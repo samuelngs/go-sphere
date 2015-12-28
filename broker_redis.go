@@ -30,11 +30,25 @@ type RedisBroker struct {
 func (broker *RedisBroker) OnSubscribe(channel *Channel) error {
 	c := make(chan error)
 	go func() {
+		// return if pubsub is already existed
+		if pubsub := broker.store[channel]; pubsub != nil {
+			c <- nil
+			return
+		}
+		// creates subscribe pubsub
 		pubsub, err := subclient.Subscribe(channel.name)
 		if err == nil {
 			broker.store[channel] = pubsub
 		}
-		c <- err
+		// close pubsub when process is done
+		defer broker.OnUnsubscribe(channel)
+		for {
+			_, err := pubsub.ReceiveMessage()
+			if err != nil {
+				c <- err
+				return
+			}
+		}
 	}()
 	return <-c
 }
