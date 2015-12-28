@@ -5,11 +5,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/rs/xid"
-)
-
-var (
-	guid = xid.New()
 )
 
 // NewConnection returns a new ws connection instance
