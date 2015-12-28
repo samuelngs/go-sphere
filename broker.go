@@ -11,6 +11,21 @@ const (
 	BrokerErrorOverrideOnPublish = "please override OnPublish"
 )
 
+// Agent represents Broker instance
+type Agent interface {
+	OnSubscribe()   // => Broker OnSubscribe
+	OnUnsubscribe() // => Broker OnUnsubscribe
+	OnPublish()     // => Broker OnPublish
+}
+
+// NewBroker creates a broker instance
+func NewBroker() *Broker {
+	return &Broker{
+		id:       "",
+		channels: make(map[string]*Channel),
+	}
+}
+
 // Broker allows you to interact directly with Websocket internal data and pub/sub channels
 type Broker struct {
 	// The broker's id
