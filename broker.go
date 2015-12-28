@@ -15,10 +15,10 @@ const (
 
 // Agent represents Broker instance
 type Agent interface {
-	OnSubscribe(*Channel)            // => Broker OnSubscribe
-	OnUnsubscribe(*Channel)          // => Broker OnUnsubscribe
-	OnPublish(*Channel, interface{}) // => Broker OnPublish
-	OnMessage(*Channel, interface{}) // => Broker OnMessage
+	OnSubscribe(*Channel) error            // => Broker OnSubscribe
+	OnUnsubscribe(*Channel) error          // => Broker OnUnsubscribe
+	OnPublish(*Channel, interface{}) error // => Broker OnPublish
+	OnMessage(*Channel, interface{}) error // => Broker OnMessage
 }
 
 // ExtendBroker creates a broker instance
