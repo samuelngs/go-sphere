@@ -5,3 +5,13 @@ type Channel struct {
 	name  string
 	state ChannelState
 }
+
+// Name returns the name of the channel
+func (channel *Channel) Name() string {
+	return channel.name
+}
+
+// State returns the state of the channel
+func (channel *Channel) State() ChannelState {
+	return channel.state
+}
