@@ -24,12 +24,15 @@ type Agent interface {
 // ExtendBroker creates a broker instance
 func ExtendBroker() *Broker {
 	return &Broker{
+		id:       guid.String(),
 		channels: make(map[string]*Channel),
 	}
 }
 
 // Broker allows you to interact directly with Websocket internal data and pub/sub channels
 type Broker struct {
+	// Broker ID
+	id string
 	// List of channels
 	channels map[string]*Channel
 }
