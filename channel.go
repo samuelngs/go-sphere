@@ -16,3 +16,12 @@ func (channel *Channel) Name() string {
 func (channel *Channel) State() ChannelState {
 	return channel.state
 }
+
+// Connections returns a list of active user connections
+func (channel *Channel) Connections() []*Connection {
+	conns := make([]*Connection, 0, len(channel.connections))
+	for _, conn := range channel.connections {
+		conns = append(conns, conn)
+	}
+	return conns
+}
