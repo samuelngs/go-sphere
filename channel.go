@@ -2,8 +2,9 @@ package sphere
 
 // Channel let you subscribe to and watch for incoming data which is published on that channel by other clients or the server
 type Channel struct {
-	name  string
-	state ChannelState
+	name        string
+	state       ChannelState
+	connections map[string]*Connection
 }
 
 // Name returns the name of the channel
