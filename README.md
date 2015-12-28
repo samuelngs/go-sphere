@@ -1,5 +1,11 @@
 # go-sphere
+
 Sphere helps you scale websocket horizontally (across multiple hosts)
+
+## License ##
+
+This project is distributed under the MIT license found in the [LICENSE](./LICENSE)
+file.
 
 ```
 The MIT License (MIT)
