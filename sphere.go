@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/rs/xid"
 )
 
 const (
@@ -39,10 +40,13 @@ const (
 )
 
 var (
+	// Websocket Upgrader
 	upgrader = websocket.Upgrader{
 		ReadBufferSize:  readBufferSize,
 		WriteBufferSize: writeBufferSize,
 	}
+	// Guid to generate globally unique id
+	guid = xid.New()
 )
 
 // NewSphere creates a new instance of Sphere
