@@ -1,8 +1,6 @@
 package sphere
 
-import (
-	redis "gopkg.in/redis.v3"
-)
+import redis "gopkg.in/redis.v3"
 
 var (
 	roption = redis.Options{
@@ -59,5 +57,10 @@ func (broker *RedisBroker) OnUnsubscribe(channel *Channel) error {
 
 // OnPublish when websocket publishes data to a particular channel from the current broker
 func (broker *RedisBroker) OnPublish(channel *Channel, data interface{}) error {
+	return nil
+}
+
+// OnMessage when websocket receive data from the broker subscriber
+func (broker *RedisBroker) OnMessage(channel *Channel, data interface{}) error {
 	return nil
 }
