@@ -1,66 +1,44 @@
 package sphere
 
 import (
+	"bytes"
+	"encoding/gob"
+	"encoding/json"
 	"errors"
-	"fmt"
-	"strconv"
 )
-
-const (
-	// PacketEventMessage denotes a regular text data message.
-	PacketEventMessage = 0
-	// PacketEventChannel denotes a channel request.
-	PacketEventChannel = 1
-	// PacketEventSubscribe denotes a subscribe request.
-	PacketEventSubscribe = 6
-	// PacketEventUnsubscribe denotes an unsubscribe request.
-	PacketEventUnsubscribe = 7
-	// PacketEventPing denotes an ping message.
-	PacketEventPing = 8
-	// PacketEventPong denotes an pong message.
-	PacketEventPong = 9
-)
-
-// NewPacket creates new packet instance
-func NewPacket(event int, data string) *Packet {
-	return &Packet{event, data, nil}
-}
-
-// ParsePacket parses string and return packet
-func ParsePacket(str string) (*Packet, error) {
-	if str == "" {
-		return nil, errors.New("packet is empty")
-	}
-	code := string(str[0])
-	i, err := strconv.Atoi(code)
-	if err != nil {
-		return nil, errors.New("packet is invalid")
-	}
-	if i != PacketEventMessage && i != PacketEventSubscribe && i != PacketEventUnsubscribe && i != PacketEventPing && i != PacketEventPong {
-		return nil, errors.New("packet is invalid")
-	}
-	data := str[1:len(str)]
-	if i == PacketEventSubscribe || i == PacketEventUnsubscribe || i == PacketEventMessage {
-		if data == "" {
-			return nil, errors.New("packet is invalid")
-		}
-	}
-	return NewPacket(i, data), nil
-}
 
 // Packet indicates the data of the message
 type Packet struct {
-	event int
-	data  string
-	err   error
+	Success bool       `json:"success"`
+	Type    PacketType `json:"type"`
+	Channel string     `json:"channel,omitempty"`
+	Cid     int        `json:"cid,omitempty"`
+	Rid     int        `json:"rid,omitempty"`
+	Error   error      `json:"error,omitempty"`
+	Message *Message   `json:"message,omitempty"`
 }
 
-// String converts Packet object to a string format
-func (packet *Packet) String() string {
-	return fmt.Sprintf("%d%s", packet.event, packet.data)
+// ParsePacket returns Packet from bytes
+func ParsePacket(data []byte) (*Packet, error) {
+	var p *Packet
+	if err := json.Unmarshal(data, &p); err != nil {
+		return nil, errors.New("packet format is invalid")
+	}
+	return p, nil
 }
 
-// Byte converts Packet object to byte array format
-func (packet *Packet) Byte() []byte {
-	return []byte(packet.String())
+// Packet.toJSON returns json byte array from Packet
+func (p *Packet) toJSON() ([]byte, error) {
+	return json.Marshal(p)
+}
+
+// Packet.toBytes returns byte array from Packet
+func (p *Packet) toBytes() ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(p)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
