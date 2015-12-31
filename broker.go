@@ -15,6 +15,7 @@ const (
 
 // Agent represents Broker instance
 type Agent interface {
+	ID() string                            // => Broker ID
 	OnSubscribe(*Channel) error            // => Broker OnSubscribe
 	OnUnsubscribe(*Channel) error          // => Broker OnUnsubscribe
 	OnPublish(*Channel, interface{}) error // => Broker OnPublish
@@ -35,6 +36,11 @@ type Broker struct {
 	id string
 	// List of channels
 	channels map[string]*Channel
+}
+
+// ID returns the unique id for the broker
+func (broker *Broker) ID() string {
+	return broker.id
 }
 
 // OnSubscribe when websocket subscribes to a channel
