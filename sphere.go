@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/xid"
+	"github.com/streamrail/concurrent-map"
 )
 
 const (
@@ -64,7 +65,7 @@ func NewSphere(brokers ...Agent) *Sphere {
 	// creates sphere instance
 	sphere := &Sphere{
 		agent:       broker,
-		connections: make(map[string]*Connection),
+		connections: cmap.New(),
 		register:    make(chan *Connection),
 		unregister:  make(chan *Connection),
 	}
@@ -78,7 +79,7 @@ type Sphere struct {
 	// a broker agent
 	agent Agent
 	// list of active connections
-	connections map[string]*Connection
+	connections cmap.ConcurrentMap
 	// register requests from the connection(s)
 	register chan *Connection
 	// unregister requests from the connection(s)
@@ -94,9 +95,9 @@ func (sphere *Sphere) queue() {
 	for {
 		select {
 		case conn := <-sphere.register:
-			sphere.connections[conn.id] = conn
+			sphere.connections.Set(conn.id, conn)
 		case conn := <-sphere.unregister:
-			delete(sphere.connections, conn.id)
+			sphere.connections.Remove(conn.id)
 			defer conn.Close()
 		}
 	}
