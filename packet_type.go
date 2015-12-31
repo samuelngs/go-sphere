@@ -43,8 +43,7 @@ func (p PacketType) String() string {
 
 // UnmarshalJSON to parse object from json string
 func (p *PacketType) UnmarshalJSON(b []byte) (err error) {
-	m := strings.Trim(string(b[:]), `"`)
-	switch m {
+	switch strings.Trim(string(b[:]), `"`) {
 	case PacketTypeCode[0]:
 		*p = PacketTypeMessage
 	case PacketTypeCode[1]:
