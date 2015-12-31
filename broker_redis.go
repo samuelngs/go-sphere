@@ -15,14 +15,12 @@ var (
 // NewRedisBroker creates a new instance of RedisBroker
 func NewRedisBroker() *RedisBroker {
 	return &RedisBroker{
-		make(map[*Channel]*redis.PubSub),
 		ExtendBroker(),
 	}
 }
 
 // RedisBroker is a broker adapter built on Redis client
 type RedisBroker struct {
-	store map[*Channel]*redis.PubSub
 	*Broker
 }
 
@@ -31,14 +29,14 @@ func (broker *RedisBroker) OnSubscribe(channel *Channel) error {
 	c := make(chan error)
 	go func() {
 		// return if pubsub is already existed
-		if pubsub := broker.store[channel]; pubsub != nil {
+		if broker.store.Has(channel.name) {
 			c <- nil
 			return
 		}
 		// creates subscribe pubsub
 		pubsub, err := subclient.Subscribe(channel.name)
 		if err == nil {
-			broker.store[channel] = pubsub
+			broker.store.Set(channel.name, pubsub)
 		}
 		// close pubsub when process is done
 		defer broker.OnUnsubscribe(channel)
@@ -57,11 +55,13 @@ func (broker *RedisBroker) OnSubscribe(channel *Channel) error {
 func (broker *RedisBroker) OnUnsubscribe(channel *Channel) error {
 	c := make(chan error)
 	go func() {
-		if pubsub := broker.store[channel]; pubsub != nil {
-			// close pubsub handler
-			c <- pubsub.Close()
-			// remove pubsub from store
-			defer delete(broker.store, channel)
+		if tmp, ok := broker.store.Get(channel.name); ok {
+			if pubsub, ok := tmp.(*redis.PubSub); ok {
+				// close pubsub handler
+				c <- pubsub.Close()
+				// remove pubsub from store
+				broker.store.Remove(channel.name)
+			}
 		} else {
 			c <- nil
 		}
