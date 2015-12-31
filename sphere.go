@@ -67,6 +67,8 @@ func NewSphere(brokers ...Agent) *Sphere {
 	sphere := &Sphere{
 		agent:       broker,
 		connections: cmap.New(),
+		channels:    cmap.New(),
+		models:      cmap.New(),
 	}
 	return sphere
 }
@@ -77,6 +79,10 @@ type Sphere struct {
 	agent Agent
 	// list of active connections
 	connections cmap.ConcurrentMap
+	// list of channels
+	channels cmap.ConcurrentMap
+	// list of models
+	models cmap.ConcurrentMap
 }
 
 // Handler handles and creates websocket connection
@@ -86,6 +92,17 @@ func (sphere *Sphere) Handler(w http.ResponseWriter, r *http.Request) {
 		go sphere.write(conn)
 		sphere.read(conn)
 		defer sphere.connections.Remove(conn.id)
+	}
+}
+
+// Models channel models
+func (sphere *Sphere) Models(models ...IChannels) {
+	for _, model := range models {
+		if !sphere.models.Has(model.Namespace()) {
+			sphere.models.Set(model.Namespace(), model)
+		} else {
+			panic(fmt.Sprintf("model \"%s\" is already existed", model.Namespace()))
+		}
 	}
 }
 
@@ -119,24 +136,124 @@ func (sphere *Sphere) read(conn *Connection) {
 			return
 		}
 		if msg != nil {
-			go sphere.receive(conn, msg)
+			go sphere.process(conn, msg)
 		}
 	}
 }
 
-func (sphere *Sphere) receive(conn *Connection, msg []byte) {
+func (sphere *Sphere) process(conn *Connection, msg []byte) {
 	p, err := ParsePacket(msg)
 	if err != nil {
 		fmt.Printf("Error: %v - %v", err.Error(), string(msg[:]))
 		return
 	}
 	if p != nil {
-		if p.Type == PacketTypeChannel {
-			if p.Channel != "" {
-				sphere.agent.OnPublish(nil, p)
+		switch p.Type {
+		case PacketTypeChannel:
+			if p.Namespace != "" && p.Room != "" {
+				if sphere.models.Has(p.Namespace) {
+					p.Machine = sphere.agent.ID()
+					sphere.publish(p)
+				} else {
+					p.Error = ErrUnsupportedNamespace
+					if json, err := p.toJSON(); err == nil {
+						conn.send <- json
+					}
+				}
+			} else {
+				p.Error = ErrBadScheme
+				if json, err := p.toJSON(); err == nil {
+					conn.send <- json
+				}
 			}
-		} else {
+		case PacketTypeSubscribe:
+			if p.Namespace != "" && p.Room != "" {
+				if sphere.models.Has(p.Namespace) {
+					sphere.subscribe(p.Namespace, p.Room, conn)
+				} else {
+					p.Error = ErrUnsupportedNamespace
+					if json, err := p.toJSON(); err == nil {
+						conn.send <- json
+					}
+				}
+			} else {
+				p.Error = ErrBadScheme
+				if json, err := p.toJSON(); err == nil {
+					conn.send <- json
+				}
+			}
+		case PacketTypeUnsubscribe:
+			if p.Namespace != "" && p.Room != "" {
+				if sphere.models.Has(p.Namespace) {
+					sphere.unsubscribe(p.Namespace, p.Room, conn)
+				} else {
+					p.Error = ErrUnsupportedNamespace
+					if json, err := p.toJSON(); err == nil {
+						conn.send <- json
+					}
+				}
+			} else {
+				p.Error = ErrBadScheme
+				if json, err := p.toJSON(); err == nil {
+					conn.send <- json
+				}
+			}
+		case PacketTypePing:
+			p.Type = PacketTypePong
+			if json, err := p.toJSON(); err == nil {
+				conn.send <- json
+			}
+		case PacketTypeMessage:
 			conn.receive <- p
 		}
 	}
+}
+
+func (sphere *Sphere) channel(namespace string, room string, autoCreateOpts ...bool) *Channel {
+	c := make(chan *Channel)
+	autoCreateOpt := false
+	for _, opt := range autoCreateOpts {
+		autoCreateOpt = opt
+		break
+	}
+	name := sphere.agent.ChannelName(namespace, room)
+	go func() {
+		if tmp, ok := sphere.channels.Get(name); ok {
+			c <- tmp.(*Channel)
+		} else {
+			if autoCreateOpt {
+				channel := NewChannel(name)
+				sphere.channels.Set(name, channel)
+				c <- channel
+			} else {
+				c <- nil
+			}
+		}
+	}()
+	return <-c
+}
+
+func (sphere *Sphere) subscribe(namespace string, room string, conn *Connection) error {
+	if channel := sphere.channel(namespace, room, true); channel != nil {
+		if !sphere.agent.IsSubscribed(channel.name) {
+			sphere.agent.OnSubscribe(channel)
+		}
+	}
+	return nil
+}
+
+func (sphere *Sphere) unsubscribe(namespace string, room string, conn *Connection) error {
+	if channel := sphere.channel(namespace, room, true); channel != nil {
+		if sphere.agent.IsSubscribed(channel.name) {
+			sphere.agent.OnUnsubscribe(channel)
+		}
+	}
+	return nil
+}
+
+func (sphere *Sphere) publish(p *Packet) error {
+	if channel := sphere.channel(p.Namespace, p.Room); channel != nil {
+		sphere.agent.OnPublish(channel, p)
+	}
+	return nil
 }
