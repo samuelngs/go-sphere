@@ -20,7 +20,8 @@ const (
 // Agent represents Broker instance
 type Agent interface {
 	ID() string                            // => Broker ID
-	Channel(string) *Channel               // => Broker Get Channel
+	ChannelName(string, string) string     // => Broker generate channel name with namespace and channel
+	IsSubscribed(string) bool              // => Broker channel subscribe state
 	OnSubscribe(*Channel) error            // => Broker OnSubscribe
 	OnUnsubscribe(*Channel) error          // => Broker OnUnsubscribe
 	OnPublish(*Channel, interface{}) error // => Broker OnPublish
@@ -30,8 +31,8 @@ type Agent interface {
 // ExtendBroker creates a broker instance
 func ExtendBroker() *Broker {
 	return &Broker{
-		id:       guid.String(),
-		channels: cmap.New(),
+		id:    guid.String(),
+		store: cmap.New(),
 	}
 }
 
@@ -39,8 +40,8 @@ func ExtendBroker() *Broker {
 type Broker struct {
 	// Broker ID
 	id string
-	// List of channels
-	channels cmap.ConcurrentMap
+	// Channel store
+	store cmap.ConcurrentMap
 }
 
 // ID returns the unique id for the broker
@@ -48,16 +49,14 @@ func (broker *Broker) ID() string {
 	return broker.id
 }
 
-// Channel returns the channel instance with matched id
-func (broker *Broker) Channel(id string) *Channel {
-	if broker.channels.Has(id) {
-		channel, ok := broker.channels.Get(id)
-		if !ok {
-			return nil
-		}
-		return channel.(*Channel)
-	}
-	return nil
+// ChannelName returns channel name with provided namespace and room name
+func (broker *Broker) ChannelName(namespace string, room string) string {
+	return namespace + ":" + room
+}
+
+// IsSubscribed return the broker state of the channel
+func (broker *Broker) IsSubscribed(name string) bool {
+	return broker.store.Has(name)
 }
 
 // OnSubscribe when websocket subscribes to a channel
