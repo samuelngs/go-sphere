@@ -1,6 +1,10 @@
 package sphere
 
-import "github.com/streamrail/concurrent-map"
+import (
+	"errors"
+
+	"github.com/streamrail/concurrent-map"
+)
 
 // NewChannel creates new Channel instance
 func NewChannel(name string) *Channel {
@@ -31,4 +35,49 @@ func (channel *Channel) Connections() []*Connection {
 		conns = append(conns, item.Val.(*Connection))
 	}
 	return conns
+}
+
+// subscribe this channel
+func (channel *Channel) subscribe(c *Connection) (bool, error) {
+	state := channel.isSubscribed(c)
+	if !state {
+		channel.connections.Set(c.id, c)
+		return true, nil
+	}
+	return state, errors.New(ErrorAlreadySubscribed.String())
+}
+
+// unsubscribe this channel
+func (channel *Channel) unsubscribe(c *Connection) (bool, error) {
+	state := channel.isSubscribed(c)
+	if state {
+		channel.connections.Remove(c.id)
+		return true, nil
+	}
+	return state, errors.New(ErrorNotSubscribed.String())
+}
+
+// isSubscribed checks if connection is in the connection list
+func (channel *Channel) isSubscribed(c *Connection) bool {
+	return channel.connections.Has(c.id)
+}
+
+// Emit sends message to current channel
+func (channel *Channel) emit(mt int, payload []byte, c *Connection) error {
+	l := channel.connections.Count()
+	e := make(chan error, l)
+	go func() {
+		for item := range channel.connections.Iter() {
+			conn := item.Val.(*Connection)
+			if conn != c {
+				e <- conn.emit(mt, payload)
+			} else {
+				e <- nil
+			}
+		}
+	}()
+	for i := 0; i < l; i++ {
+		<-e
+	}
+	return nil
 }
