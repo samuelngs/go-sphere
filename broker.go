@@ -1,6 +1,10 @@
 package sphere
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/streamrail/concurrent-map"
+)
 
 const (
 	// BrokerErrorOverrideOnSubscribe to warn use to override OnSubsribe function
@@ -16,6 +20,7 @@ const (
 // Agent represents Broker instance
 type Agent interface {
 	ID() string                            // => Broker ID
+	Channel(string) *Channel               // => Broker Get Channel
 	OnSubscribe(*Channel) error            // => Broker OnSubscribe
 	OnUnsubscribe(*Channel) error          // => Broker OnUnsubscribe
 	OnPublish(*Channel, interface{}) error // => Broker OnPublish
@@ -26,7 +31,7 @@ type Agent interface {
 func ExtendBroker() *Broker {
 	return &Broker{
 		id:       guid.String(),
-		channels: make(map[string]*Channel),
+		channels: cmap.New(),
 	}
 }
 
@@ -35,12 +40,24 @@ type Broker struct {
 	// Broker ID
 	id string
 	// List of channels
-	channels map[string]*Channel
+	channels cmap.ConcurrentMap
 }
 
 // ID returns the unique id for the broker
 func (broker *Broker) ID() string {
 	return broker.id
+}
+
+// Channel returns the channel instance with matched id
+func (broker *Broker) Channel(id string) *Channel {
+	if broker.channels.Has(id) {
+		channel, ok := broker.channels.Get(id)
+		if !ok {
+			return nil
+		}
+		return channel.(*Channel)
+	}
+	return nil
 }
 
 // OnSubscribe when websocket subscribes to a channel
