@@ -127,12 +127,16 @@ func (sphere *Sphere) read(conn *Connection) {
 func (sphere *Sphere) receive(conn *Connection, msg []byte) {
 	p, err := ParsePacket(msg)
 	if err != nil {
-		fmt.Printf("Error: %v", err.Error())
-	} else {
-		fmt.Println(string(msg[:]), p)
-		// if p.Type == PacketTypeChannel {
-		// } else {
-		// 	// conn.receive <- p
-		// }
+		fmt.Printf("Error: %v - %v", err.Error(), string(msg[:]))
+		return
+	}
+	if p != nil {
+		if p.Type == PacketTypeChannel {
+			if p.Channel != "" {
+				sphere.agent.OnPublish(nil, p)
+			}
+		} else {
+			conn.receive <- p
+		}
 	}
 }
