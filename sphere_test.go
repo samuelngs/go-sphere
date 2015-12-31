@@ -1,6 +1,7 @@
 package sphere
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -12,13 +13,16 @@ import (
 )
 
 var (
-	address = "127.0.0.1:53320"
+	address = func() string {
+		l, _ := net.Listen("tcp", ":0")
+		defer l.Close()
+		return fmt.Sprintf("127.0.0.1:%d", l.Addr().(*net.TCPAddr).Port)
+	}()
 )
 
 func init() {
 	gin.SetMode(gin.ReleaseMode)
-	s := NewSphere()
-	r := gin.New()
+	s, r := NewSphere(), gin.New()
 	r.GET("/sync", func(c *gin.Context) {
 		s.Handler(c.Writer, c.Request)
 	})
@@ -37,8 +41,7 @@ func CreateConnection() (c *websocket.Conn, response *http.Response, err error) 
 	wsHeaders := http.Header{
 		"Origin": {"http://" + address},
 	}
-	wsConn, resp, err := websocket.NewClient(rawConn, u, wsHeaders, 1024, 1024)
-	return wsConn, resp, err
+	return websocket.NewClient(rawConn, u, wsHeaders, 1024, 1024)
 }
 
 func TestSphereReady(t *testing.T) {
