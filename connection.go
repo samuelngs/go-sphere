@@ -11,7 +11,7 @@ import (
 func NewConnection(w http.ResponseWriter, r *http.Request) (*Connection, error) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err == nil {
-		conn := &Connection{guid.String(), []*Channel{}, make(chan []byte), make(chan *Packet), r, ws}
+		conn := &Connection{guid.String(), 0, []*Channel{}, make(chan []byte), make(chan *Packet), r, ws}
 		go conn.queue()
 		return conn, nil
 	}
@@ -22,6 +22,8 @@ func NewConnection(w http.ResponseWriter, r *http.Request) (*Connection, error) 
 type Connection struct {
 	// the id of the connection
 	id string
+	// cid
+	cid int
 	// list of channels that this connection has been subscribed
 	channels []*Channel
 	// buffered channel of outbound messages
@@ -37,13 +39,7 @@ type Connection struct {
 func (conn *Connection) queue() {
 	for {
 		select {
-		case p := <-conn.receive:
-			p.Type = PacketTypePong
-			res, err := p.toJSON()
-			if err != nil {
-				return
-			}
-			conn.WriteMessage(TextMessage, res)
+		case <-conn.receive:
 		}
 	}
 }
