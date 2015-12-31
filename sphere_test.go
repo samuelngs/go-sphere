@@ -104,7 +104,6 @@ func TestSphereMessagePingPong(t *testing.T) {
 				return
 			}
 			done <- nil
-			fmt.Println("ahah", string(msg[:]))
 			return
 		}
 	}()
