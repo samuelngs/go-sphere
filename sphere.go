@@ -1,6 +1,7 @@
 package sphere
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -66,11 +67,7 @@ func NewSphere(brokers ...Agent) *Sphere {
 	sphere := &Sphere{
 		agent:       broker,
 		connections: cmap.New(),
-		register:    make(chan *Connection),
-		unregister:  make(chan *Connection),
 	}
-	go sphere.broker()
-	go sphere.queue()
 	return sphere
 }
 
@@ -80,37 +77,62 @@ type Sphere struct {
 	agent Agent
 	// list of active connections
 	connections cmap.ConcurrentMap
-	// register requests from the connection(s)
-	register chan *Connection
-	// unregister requests from the connection(s)
-	unregister chan *Connection
-}
-
-// Broker handler for Sphere
-func (sphere *Sphere) broker() {
-}
-
-// Queue handler for Sphere
-func (sphere *Sphere) queue() {
-	for {
-		select {
-		case conn := <-sphere.register:
-			sphere.connections.Set(conn.id, conn)
-		case conn := <-sphere.unregister:
-			sphere.connections.Remove(conn.id)
-			defer conn.Close()
-		}
-	}
 }
 
 // Handler handles and creates websocket connection
 func (sphere *Sphere) Handler(w http.ResponseWriter, r *http.Request) {
 	if conn, err := NewConnection(w, r); err == nil {
-		sphere.register <- conn
-		go conn.writePump()
-		conn.readPump()
-		defer func() {
-			sphere.unregister <- conn
-		}()
+		sphere.connections.Set(conn.id, conn)
+		go sphere.write(conn)
+		sphere.read(conn)
+		defer sphere.connections.Remove(conn.id)
+	}
+}
+
+func (sphere *Sphere) write(conn *Connection) {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+	}()
+	for {
+		select {
+		case msg, ok := <-conn.send:
+			if !ok {
+				conn.emit(websocket.CloseMessage, []byte{})
+				return
+			}
+			if err := conn.emit(websocket.TextMessage, msg); err != nil {
+				return
+			}
+		case <-ticker.C:
+			if err := conn.emit(websocket.PingMessage, []byte{}); err != nil {
+				return
+			}
+		}
+	}
+}
+
+func (sphere *Sphere) read(conn *Connection) {
+	for {
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		if msg != nil {
+			go sphere.receive(conn, msg)
+		}
+	}
+}
+
+func (sphere *Sphere) receive(conn *Connection, msg []byte) {
+	p, err := ParsePacket(msg)
+	if err != nil {
+		fmt.Printf("Error: %v", err.Error())
+	} else {
+		fmt.Println(string(msg[:]), p)
+		// if p.Type == PacketTypeChannel {
+		// } else {
+		// 	// conn.receive <- p
+		// }
 	}
 }
