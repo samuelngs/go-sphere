@@ -98,7 +98,7 @@ func TestSphereMessagePingPong(t *testing.T) {
 	defer c.Close()
 	go func() {
 		for {
-			_, msg, err := c.ReadMessage()
+			_, _, err := c.ReadMessage()
 			if err != nil {
 				done <- err
 				return
