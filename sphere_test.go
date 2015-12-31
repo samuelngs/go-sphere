@@ -22,7 +22,8 @@ var (
 
 func init() {
 	gin.SetMode(gin.ReleaseMode)
-	s, r := NewSphere(), gin.New()
+	a := NewRedisBroker()
+	s, r := NewSphere(a), gin.New()
 	r.GET("/sync", func(c *gin.Context) {
 		s.Handler(c.Writer, c.Request)
 	})
@@ -65,8 +66,55 @@ func TestSphereReady(t *testing.T) {
 }
 
 func TestSphereConnection(t *testing.T) {
-	_, _, err := CreateConnection()
+	c, _, err := CreateConnection()
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+	defer c.Close()
+}
+
+func TestSphereSendMessage(t *testing.T) {
+	c, _, err := CreateConnection()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	defer c.Close()
+	p := &Packet{Success: true, Type: PacketTypePing}
+	res, err := p.toJSON()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	if err := c.WriteMessage(TextMessage, res); err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
+func TestSphereMessagePingPong(t *testing.T) {
+	done := make(chan error)
+	c, _, err := CreateConnection()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	defer c.Close()
+	go func() {
+		for {
+			_, msg, err := c.ReadMessage()
+			if err != nil {
+				done <- err
+				return
+			}
+			done <- nil
+			fmt.Println("ahah", string(msg[:]))
+			return
+		}
+	}()
+	p := &Packet{Success: true, Type: PacketTypePing}
+	res, err := p.toJSON()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	if err := c.WriteMessage(TextMessage, res); err != nil {
+		t.Fatal(err.Error())
+	}
+	<-done
 }
