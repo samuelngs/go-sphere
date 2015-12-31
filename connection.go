@@ -37,7 +37,13 @@ type Connection struct {
 func (conn *Connection) queue() {
 	for {
 		select {
-		case <-conn.receive:
+		case p := <-conn.receive:
+			p.Type = PacketTypePong
+			res, err := p.toJSON()
+			if err != nil {
+				return
+			}
+			conn.WriteMessage(TextMessage, res)
 		}
 	}
 }
