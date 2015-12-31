@@ -2,25 +2,25 @@ package sphere
 
 // IChannels is the interface for ChannelModel
 type IChannels interface {
-	Name() string
+	Namespace() string
 	Subscribe(uri string, connection *Connection) bool
 	Disconnect(uri string, connection *Connection)
 	Receive(event string, message string) error
 }
 
 // ExtendChannelModel lets developer create a IChannals compatible struct
-func ExtendChannelModel(name string) *ChannelModel {
-	return &ChannelModel{name}
+func ExtendChannelModel(namespace string) *ChannelModel {
+	return &ChannelModel{namespace}
 }
 
 // ChannelModel is for user to define channel events and actions
 type ChannelModel struct {
-	name string
+	namespace string
 }
 
-// Name to return name of the channel
-func (m *ChannelModel) Name() string {
-	return m.name
+// Namespace to return name of the channel
+func (m *ChannelModel) Namespace() string {
+	return m.namespace
 }
 
 // Subscribe decides whether accept the connection into channel or not, return true => accept, false => reject
