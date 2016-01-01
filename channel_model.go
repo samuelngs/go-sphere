@@ -4,7 +4,7 @@ package sphere
 type IChannels interface {
 	Namespace() string
 	Subscribe(string, *Connection) bool
-	Disconnect(string, *Connection)
+	Disconnect(string, *Connection) bool
 	Receive(string, string) error
 }
 
@@ -29,7 +29,9 @@ func (m *ChannelModel) Subscribe(room string, connection *Connection) bool {
 }
 
 // Disconnect defines the action when user disconnect from channel
-func (m *ChannelModel) Disconnect(room string, connection *Connection) {}
+func (m *ChannelModel) Disconnect(room string, connection *Connection) bool {
+	return true
+}
 
 // Receive defines the action when websocket server receive message from user in this channel
 func (m *ChannelModel) Receive(event string, message string) error {
