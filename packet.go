@@ -14,7 +14,7 @@ type Packet struct {
 	Room      string     `json:"room,omitempty"`
 	Cid       int        `json:"cid,omitempty"`
 	Rid       int        `json:"rid,omitempty"`
-	Error     *Error     `json:"error,omitempty"`
+	Error     error      `json:"error,omitempty"`
 	Message   *Message   `json:"message,omitempty"`
 	Machine   string     `json:"-"`
 }
