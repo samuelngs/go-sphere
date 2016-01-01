@@ -29,14 +29,14 @@ func (broker *RedisBroker) OnSubscribe(channel *Channel) error {
 	c := make(chan error)
 	go func() {
 		// return if pubsub is already existed
-		if broker.store.Has(channel.name) {
+		if broker.store.Has(channel.Name()) {
 			c <- nil
 			return
 		}
 		// creates subscribe pubsub
-		pubsub, err := subclient.Subscribe(channel.name)
+		pubsub, err := subclient.Subscribe(channel.Name())
 		if err == nil {
-			broker.store.Set(channel.name, pubsub)
+			broker.store.Set(channel.Name(), pubsub)
 		}
 		// close pubsub when process is done
 		defer broker.OnUnsubscribe(channel)
@@ -55,12 +55,12 @@ func (broker *RedisBroker) OnSubscribe(channel *Channel) error {
 func (broker *RedisBroker) OnUnsubscribe(channel *Channel) error {
 	c := make(chan error)
 	go func() {
-		if tmp, ok := broker.store.Get(channel.name); ok {
+		if tmp, ok := broker.store.Get(channel.Name()); ok {
 			if pubsub, ok := tmp.(*redis.PubSub); ok {
 				// close pubsub handler
 				c <- pubsub.Close()
 				// remove pubsub from store
-				broker.store.Remove(channel.name)
+				broker.store.Remove(channel.Name())
 			}
 		} else {
 			c <- nil

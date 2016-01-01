@@ -55,8 +55,8 @@ func (broker *Broker) ChannelName(namespace string, room string) string {
 }
 
 // IsSubscribed return the broker state of the channel
-func (broker *Broker) IsSubscribed(name string) bool {
-	return broker.store.Has(name)
+func (broker *Broker) IsSubscribed(namespace string, room string) bool {
+	return broker.store.Has(broker.ChannelName(namespace, room))
 }
 
 // OnSubscribe when websocket subscribes to a channel

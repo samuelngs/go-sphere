@@ -208,7 +208,7 @@ func (sphere *Sphere) channel(namespace string, room string, autoCreateOpts ...b
 			c <- tmp.(*Channel)
 		} else {
 			if autoCreateOpt {
-				channel := NewChannel(name)
+				channel := NewChannel(namespace, room)
 				sphere.channels.Set(name, channel)
 				c <- channel
 			} else {
@@ -236,7 +236,7 @@ func (sphere *Sphere) subscribe(namespace string, room string, conn *Connection)
 	if channel == nil {
 		return ErrBadStatus
 	}
-	if _, err := channel.subscribe(conn); err == nil && !sphere.agent.IsSubscribed(channel.name) {
+	if _, err := channel.subscribe(conn); err == nil && !sphere.agent.IsSubscribed(channel.namespace, channel.room) {
 		go sphere.agent.OnSubscribe(channel)
 	}
 	return nil
@@ -260,7 +260,7 @@ func (sphere *Sphere) unsubscribe(namespace string, room string, conn *Connectio
 		return ErrBadStatus
 	}
 	if _, err := channel.unsubscribe(conn); err == nil && channel.connections.Count() == 0 {
-		if sphere.agent.IsSubscribed(channel.name) {
+		if sphere.agent.IsSubscribed(channel.namespace, channel.room) {
 			go sphere.agent.OnUnsubscribe(channel)
 		}
 	}
@@ -269,7 +269,7 @@ func (sphere *Sphere) unsubscribe(namespace string, room string, conn *Connectio
 
 func (sphere *Sphere) publish(p *Packet) error {
 	if channel := sphere.channel(p.Namespace, p.Room); channel != nil {
-		if sphere.agent.IsSubscribed(channel.name) {
+		if sphere.agent.IsSubscribed(channel.namespace, channel.room) {
 			sphere.agent.OnPublish(channel, p)
 		}
 	}

@@ -7,20 +7,21 @@ import (
 )
 
 // NewChannel creates new Channel instance
-func NewChannel(name string) *Channel {
-	return &Channel{name: name, state: ChannelStatePending, connections: cmap.New()}
+func NewChannel(namespace string, room string) *Channel {
+	return &Channel{namespace: namespace, room: room, state: ChannelStatePending, connections: cmap.New()}
 }
 
 // Channel let you subscribe to and watch for incoming data which is published on that channel by other clients or the server
 type Channel struct {
-	name        string
+	namespace   string
+	room        string
 	state       ChannelState
 	connections cmap.ConcurrentMap
 }
 
 // Name returns the name of the channel
 func (channel *Channel) Name() string {
-	return channel.name
+	return channel.namespace + ":" + channel.room
 }
 
 // State returns the state of the channel
