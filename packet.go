@@ -50,3 +50,10 @@ func (p *Packet) String() string {
 	}
 	return ""
 }
+
+// Response return response packet
+func (p *Packet) Response() *Packet {
+	r := *p
+	r.Rid = r.Cid
+	return &r
+}
