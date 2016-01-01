@@ -21,7 +21,7 @@ const (
 type Agent interface {
 	ID() string                        // => Broker ID
 	ChannelName(string, string) string // => Broker generate channel name with namespace and channel
-	IsSubscribed(string) bool          // => Broker channel subscribe state
+	IsSubscribed(string, string) bool  // => Broker channel subscribe state
 	OnSubscribe(*Channel) error        // => Broker OnSubscribe
 	OnUnsubscribe(*Channel) error      // => Broker OnUnsubscribe
 	OnPublish(*Channel, *Packet) error // => Broker OnPublish
