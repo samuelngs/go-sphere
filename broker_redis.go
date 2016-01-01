@@ -70,11 +70,20 @@ func (broker *RedisBroker) OnUnsubscribe(channel *Channel) error {
 }
 
 // OnPublish when websocket publishes data to a particular channel from the current broker
-func (broker *RedisBroker) OnPublish(channel *Channel, data interface{}) error {
-	return nil
+func (broker *RedisBroker) OnPublish(channel *Channel, data *Packet) error {
+	c := make(chan error)
+	go func() {
+		if str := data.String(); str != "" {
+			res := pubclient.Publish(channel.Name(), str)
+			c <- res.Err()
+		} else {
+			c <- nil
+		}
+	}()
+	return <-c
 }
 
 // OnMessage when websocket receive data from the broker subscriber
-func (broker *RedisBroker) OnMessage(channel *Channel, data interface{}) error {
+func (broker *RedisBroker) OnMessage(channel *Channel, data *Packet) error {
 	return nil
 }
