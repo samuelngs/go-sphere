@@ -43,3 +43,10 @@ func (p *Packet) toBytes() ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
+func (p *Packet) String() string {
+	if json, err := p.toJSON(); err == nil {
+		return string(json[:])
+	}
+	return ""
+}
