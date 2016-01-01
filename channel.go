@@ -1,10 +1,6 @@
 package sphere
 
-import (
-	"errors"
-
-	"github.com/streamrail/concurrent-map"
-)
+import "github.com/streamrail/concurrent-map"
 
 // NewChannel creates new Channel instance
 func NewChannel(namespace string, room string) *Channel {
@@ -39,23 +35,21 @@ func (channel *Channel) Connections() []*Connection {
 }
 
 // subscribe this channel
-func (channel *Channel) subscribe(c *Connection) (bool, error) {
+func (channel *Channel) subscribe(c *Connection) error {
 	state := channel.isSubscribed(c)
 	if !state {
-		channel.connections.Set(c.id, c)
-		return true, nil
+		c.subscribe(channel)
 	}
-	return state, errors.New(ErrorAlreadySubscribed.String())
+	return nil
 }
 
 // unsubscribe this channel
-func (channel *Channel) unsubscribe(c *Connection) (bool, error) {
+func (channel *Channel) unsubscribe(c *Connection) error {
 	state := channel.isSubscribed(c)
 	if state {
-		channel.connections.Remove(c.id)
-		return true, nil
+		c.unsubscribe(channel)
 	}
-	return state, errors.New(ErrorNotSubscribed.String())
+	return nil
 }
 
 // isSubscribed checks if connection is in the connection list
