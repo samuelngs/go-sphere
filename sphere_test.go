@@ -79,7 +79,7 @@ func TestSphereSendMessage(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	defer c.Close()
-	p := &Packet{Success: true, Type: PacketTypePing}
+	p := &Packet{Type: PacketTypePing}
 	res, err := p.toJSON()
 	if err != nil {
 		t.Fatal(err.Error())
@@ -107,7 +107,7 @@ func TestSphereMessagePingPong(t *testing.T) {
 			return
 		}
 	}()
-	p := &Packet{Success: true, Type: PacketTypePing}
+	p := &Packet{Type: PacketTypePing}
 	res, err := p.toJSON()
 	if err != nil {
 		t.Fatal(err.Error())
