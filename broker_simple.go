@@ -23,11 +23,11 @@ func (broker *SimpleBroker) OnUnsubscribe(channel *Channel) error {
 }
 
 // OnPublish when websocket publishes data to a particular channel from the current broker
-func (broker *SimpleBroker) OnPublish(channel *Channel, data interface{}) error {
+func (broker *SimpleBroker) OnPublish(channel *Channel, data *Packet) error {
 	return nil
 }
 
 // OnMessage when websocket receive data from the broker subscriber
-func (broker *SimpleBroker) OnMessage(channel *Channel, data interface{}) error {
+func (broker *SimpleBroker) OnMessage(channel *Channel, data *Packet) error {
 	return nil
 }
