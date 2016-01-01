@@ -41,10 +41,13 @@ func (broker *RedisBroker) OnSubscribe(channel *Channel) error {
 		// close pubsub when process is done
 		defer broker.OnUnsubscribe(channel)
 		for {
-			_, err := pubsub.ReceiveMessage()
+			msg, err := pubsub.ReceiveMessage()
 			if err != nil {
 				c <- err
 				return
+			}
+			if p, err := ParsePacket([]byte(msg.Payload)); err == nil {
+				broker.OnMessage(channel, p)
 			}
 		}
 	}()
@@ -85,5 +88,12 @@ func (broker *RedisBroker) OnPublish(channel *Channel, data *Packet) error {
 
 // OnMessage when websocket receive data from the broker subscriber
 func (broker *RedisBroker) OnMessage(channel *Channel, data *Packet) error {
-	return nil
+	c := make(chan error)
+	go func() {
+		if json, err := data.toJSON(); err == nil {
+			channel.emit(TextMessage, json, nil)
+		}
+		c <- nil
+	}()
+	return <-c
 }
