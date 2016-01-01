@@ -151,15 +151,8 @@ func (sphere *Sphere) process(conn *Connection, msg []byte) {
 		switch p.Type {
 		case PacketTypeChannel:
 			if p.Namespace != "" && p.Room != "" {
-				if sphere.models.Has(p.Namespace) {
-					p.Machine = sphere.agent.ID()
-					sphere.publish(p)
-				} else {
-					p.Error = ErrUnsupportedNamespace
-					if json, err := p.toJSON(); err == nil {
-						conn.send <- json
-					}
-				}
+				p.Machine = sphere.agent.ID()
+				sphere.publish(p)
 			} else {
 				p.Error = ErrBadScheme
 				if json, err := p.toJSON(); err == nil {
@@ -168,14 +161,7 @@ func (sphere *Sphere) process(conn *Connection, msg []byte) {
 			}
 		case PacketTypeSubscribe:
 			if p.Namespace != "" && p.Room != "" {
-				if sphere.models.Has(p.Namespace) {
-					sphere.subscribe(p.Namespace, p.Room, conn)
-				} else {
-					p.Error = ErrUnsupportedNamespace
-					if json, err := p.toJSON(); err == nil {
-						conn.send <- json
-					}
-				}
+				sphere.subscribe(p.Namespace, p.Room, conn)
 			} else {
 				p.Error = ErrBadScheme
 				if json, err := p.toJSON(); err == nil {
@@ -234,18 +220,48 @@ func (sphere *Sphere) channel(namespace string, room string, autoCreateOpts ...b
 }
 
 func (sphere *Sphere) subscribe(namespace string, room string, conn *Connection) error {
-	if channel := sphere.channel(namespace, room, true); channel != nil {
-		if !sphere.agent.IsSubscribed(channel.name) {
-			sphere.agent.OnSubscribe(channel)
-		}
+	var model IChannels
+	if !sphere.models.Has(namespace) {
+		return ErrUnsupportedNamespace
+	}
+	if tmp, ok := sphere.models.Get(namespace); ok {
+		model = tmp.(IChannels)
+	} else {
+		return ErrUnsupportedNamespace
+	}
+	if accept := model.Subscribe(room, conn); !accept {
+		return ErrNotAuthorized
+	}
+	channel := sphere.channel(namespace, room, true)
+	if channel == nil {
+		return ErrBadStatus
+	}
+	if _, err := channel.subscribe(conn); err == nil && !sphere.agent.IsSubscribed(channel.name) {
+		go sphere.agent.OnSubscribe(channel)
 	}
 	return nil
 }
 
 func (sphere *Sphere) unsubscribe(namespace string, room string, conn *Connection) error {
-	if channel := sphere.channel(namespace, room, true); channel != nil {
+	var model IChannels
+	if !sphere.models.Has(namespace) {
+		return ErrUnsupportedNamespace
+	}
+	if tmp, ok := sphere.models.Get(namespace); ok {
+		model = tmp.(IChannels)
+	} else {
+		return ErrUnsupportedNamespace
+	}
+	if success := model.Disconnect(room, conn); !success {
+		return ErrBadStatus
+	}
+	channel := sphere.channel(namespace, room, false)
+	if channel == nil {
+		return ErrBadStatus
+	}
+	if _, err := channel.unsubscribe(conn); err == nil && channel.connections.Count() == 0 {
 		if sphere.agent.IsSubscribed(channel.name) {
-			sphere.agent.OnUnsubscribe(channel)
+			go sphere.agent.OnUnsubscribe(channel)
 		}
 	}
 	return nil
@@ -253,7 +269,9 @@ func (sphere *Sphere) unsubscribe(namespace string, room string, conn *Connectio
 
 func (sphere *Sphere) publish(p *Packet) error {
 	if channel := sphere.channel(p.Namespace, p.Room); channel != nil {
-		sphere.agent.OnPublish(channel, p)
+		if sphere.agent.IsSubscribed(channel.name) {
+			sphere.agent.OnPublish(channel, p)
+		}
 	}
 	return nil
 }
