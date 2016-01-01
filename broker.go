@@ -21,7 +21,7 @@ const (
 type Agent interface {
 	ID() string                            // => Broker ID
 	ChannelName(string, string) string     // => Broker generate channel name with namespace and channel
-	IsSubscribed(string) bool              // => Broker channel subscribe state
+	IsSubscribed(string, string) bool      // => Broker channel subscribe state
 	OnSubscribe(*Channel) error            // => Broker OnSubscribe
 	OnUnsubscribe(*Channel) error          // => Broker OnUnsubscribe
 	OnPublish(*Channel, interface{}) error // => Broker OnPublish
@@ -55,8 +55,8 @@ func (broker *Broker) ChannelName(namespace string, room string) string {
 }
 
 // IsSubscribed return the broker state of the channel
-func (broker *Broker) IsSubscribed(name string) bool {
-	return broker.store.Has(name)
+func (broker *Broker) IsSubscribed(namespace string, room string) bool {
+	return broker.store.Has(broker.ChannelName(namespace, room))
 }
 
 // OnSubscribe when websocket subscribes to a channel
