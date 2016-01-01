@@ -19,13 +19,13 @@ const (
 
 // Agent represents Broker instance
 type Agent interface {
-	ID() string                            // => Broker ID
-	ChannelName(string, string) string     // => Broker generate channel name with namespace and channel
-	IsSubscribed(string) bool              // => Broker channel subscribe state
-	OnSubscribe(*Channel) error            // => Broker OnSubscribe
-	OnUnsubscribe(*Channel) error          // => Broker OnUnsubscribe
-	OnPublish(*Channel, interface{}) error // => Broker OnPublish
-	OnMessage(*Channel, interface{}) error // => Broker OnMessage
+	ID() string                        // => Broker ID
+	ChannelName(string, string) string // => Broker generate channel name with namespace and channel
+	IsSubscribed(string) bool          // => Broker channel subscribe state
+	OnSubscribe(*Channel) error        // => Broker OnSubscribe
+	OnUnsubscribe(*Channel) error      // => Broker OnUnsubscribe
+	OnPublish(*Channel, *Packet) error // => Broker OnPublish
+	OnMessage(*Channel, *Packet) error // => Broker OnMessage
 }
 
 // ExtendBroker creates a broker instance
@@ -70,11 +70,11 @@ func (broker *Broker) OnUnsubscribe(channel *Channel) error {
 }
 
 // OnPublish when websocket publishes data to a particular channel from the current broker
-func (broker *Broker) OnPublish(channel *Channel, data interface{}) error {
+func (broker *Broker) OnPublish(channel *Channel, data *Packet) error {
 	return errors.New(BrokerErrorOverrideOnPublish)
 }
 
 // OnMessage when websocket receive data from the broker subscriber
-func (broker *Broker) OnMessage(channel *Channel, data interface{}) error {
+func (broker *Broker) OnMessage(channel *Channel, data *Packet) error {
 	return errors.New(BrokerErrorOverrideOnMessage)
 }
