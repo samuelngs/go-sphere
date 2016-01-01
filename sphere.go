@@ -91,7 +91,13 @@ func (sphere *Sphere) Handler(w http.ResponseWriter, r *http.Request) {
 		sphere.connections.Set(conn.id, conn)
 		go sphere.write(conn)
 		sphere.read(conn)
-		defer sphere.connections.Remove(conn.id)
+		defer func() {
+			for item := range conn.channels.Iter() {
+				channel := item.Val.(*Channel)
+				sphere.unsubscribe(channel.namespace, channel.room, conn)
+			}
+			sphere.connections.Remove(conn.id)
+		}()
 	}
 }
 
@@ -152,7 +158,7 @@ func (sphere *Sphere) process(conn *Connection, msg []byte) {
 		case PacketTypeChannel:
 			if p.Namespace != "" && p.Room != "" {
 				p.Machine = sphere.agent.ID()
-				sphere.publish(p)
+				sphere.publish(p, conn)
 			} else {
 				p.Error = ErrBadScheme
 				if json, err := p.toJSON(); err == nil {
@@ -236,7 +242,7 @@ func (sphere *Sphere) subscribe(namespace string, room string, conn *Connection)
 	if channel == nil {
 		return ErrBadStatus
 	}
-	if _, err := channel.subscribe(conn); err == nil && !sphere.agent.IsSubscribed(channel.namespace, channel.room) {
+	if err := channel.subscribe(conn); err == nil && !sphere.agent.IsSubscribed(channel.namespace, channel.room) {
 		go sphere.agent.OnSubscribe(channel)
 	}
 	return nil
@@ -259,7 +265,7 @@ func (sphere *Sphere) unsubscribe(namespace string, room string, conn *Connectio
 	if channel == nil {
 		return ErrBadStatus
 	}
-	if _, err := channel.unsubscribe(conn); err == nil && channel.connections.Count() == 0 {
+	if err := channel.unsubscribe(conn); err == nil && channel.connections.Count() == 0 {
 		if sphere.agent.IsSubscribed(channel.namespace, channel.room) {
 			go sphere.agent.OnUnsubscribe(channel)
 		}
@@ -267,11 +273,37 @@ func (sphere *Sphere) unsubscribe(namespace string, room string, conn *Connectio
 	return nil
 }
 
-func (sphere *Sphere) publish(p *Packet) error {
-	if channel := sphere.channel(p.Namespace, p.Room); channel != nil {
-		if sphere.agent.IsSubscribed(channel.namespace, channel.room) {
-			sphere.agent.OnPublish(channel, p)
-		}
+func (sphere *Sphere) publish(p *Packet, conn *Connection) error {
+	var model IChannels
+	if !sphere.models.Has(p.Namespace) {
+		return ErrUnsupportedNamespace
+	}
+	if tmp, ok := sphere.models.Get(p.Namespace); ok {
+		model = tmp.(IChannels)
+	} else {
+		return ErrUnsupportedNamespace
+	}
+	channel := sphere.channel(p.Namespace, p.Room)
+	if channel == nil {
+		return ErrBadStatus
+	}
+	if !channel.isSubscribed(conn) {
+		return ErrNotAuthorized
+	}
+	msg := p.Message
+	if msg == nil || msg.Event == "" {
+		return ErrBadScheme
+	}
+	res, err := model.Receive(msg.Event, msg.Data)
+	if err != nil {
+		return err
+	}
+	d := p.Response()
+	if str, ok := res.(string); ok {
+		d.Message.Data = str
+	}
+	if sphere.agent.IsSubscribed(channel.namespace, channel.room) {
+		sphere.agent.OnPublish(channel, d)
 	}
 	return nil
 }
