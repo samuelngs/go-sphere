@@ -1,5 +1,7 @@
 package sphere
 
+import "fmt"
+
 // NewChannel creates new Channel instance
 func NewChannel(namespace string, room string) *Channel {
 	return &Channel{namespace: namespace, room: room, state: ChannelStatePending, connections: NewConnectionMap()}
@@ -70,7 +72,9 @@ func (channel *Channel) emit(mt int, payload []byte, c *Connection) error {
 		}
 	}()
 	for i := 0; i < l; i++ {
-		<-e
+		if err := <-e; err != nil {
+			fmt.Printf("err: %v\n", err.Error())
+		}
 	}
 	return nil
 }
