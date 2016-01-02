@@ -1,10 +1,8 @@
 package sphere
 
-import "github.com/streamrail/concurrent-map"
-
 // NewChannel creates new Channel instance
 func NewChannel(namespace string, room string) *Channel {
-	return &Channel{namespace: namespace, room: room, state: ChannelStatePending, connections: cmap.New()}
+	return &Channel{namespace: namespace, room: room, state: ChannelStatePending, connections: NewConnectionMap()}
 }
 
 // Channel let you subscribe to and watch for incoming data which is published on that channel by other clients or the server
@@ -12,7 +10,7 @@ type Channel struct {
 	namespace   string
 	room        string
 	state       ChannelState
-	connections cmap.ConcurrentMap
+	connections ConnectionMap
 }
 
 // Name returns the name of the channel
@@ -29,7 +27,7 @@ func (channel *Channel) State() ChannelState {
 func (channel *Channel) Connections() []*Connection {
 	conns := make([]*Connection, 0, len(channel.connections))
 	for item := range channel.connections.Iter() {
-		conns = append(conns, item.Val.(*Connection))
+		conns = append(conns, item.Val)
 	}
 	return conns
 }
@@ -63,7 +61,7 @@ func (channel *Channel) emit(mt int, payload []byte, c *Connection) error {
 	e := make(chan error, l)
 	go func() {
 		for item := range channel.connections.Iter() {
-			conn := item.Val.(*Connection)
+			conn := item.Val
 			if conn != c {
 				e <- conn.emit(mt, payload)
 			} else {
