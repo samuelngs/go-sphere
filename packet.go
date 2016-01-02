@@ -9,14 +9,13 @@ import (
 
 // Packet indicates the data of the message
 type Packet struct {
-	Type      PacketType `json:"type"`
-	Namespace string     `json:"namespace,omitempty"`
-	Room      string     `json:"room,omitempty"`
-	Cid       int        `json:"cid,omitempty"`
-	Rid       int        `json:"rid,omitempty"`
-	Error     error      `json:"error,omitempty"`
-	Message   *Message   `json:"message,omitempty"`
-	Machine   string     `json:"-"`
+	Type      PacketType
+	Namespace string
+	Room      string
+	Cid       int
+	Error     error
+	Message   *Message
+	Machine   string
 }
 
 // ParsePacket returns Packet from bytes
@@ -31,6 +30,23 @@ func ParsePacket(data []byte) (*Packet, error) {
 // Packet.toJSON returns json byte array from Packet
 func (p *Packet) toJSON() ([]byte, error) {
 	return json.Marshal(p)
+}
+
+// MarshalJSON handler
+func (p *Packet) MarshalJSON() ([]byte, error) {
+	var err string
+	if p.Error != nil {
+		err = p.Error.Error()
+	}
+	return json.Marshal(&struct {
+		Type      PacketType `json:"type"`
+		Namespace string     `json:"namespace,omitempty"`
+		Room      string     `json:"room,omitempty"`
+		Cid       int        `json:"cid"`
+		Error     string     `json:"error,omitempty"`
+		Message   *Message   `json:"message,omitempty"`
+		Machine   string     `json:"-"`
+	}{p.Type, p.Namespace, p.Room, p.Cid, err, p.Message, p.Machine})
 }
 
 // Packet.toBytes returns byte array from Packet
@@ -54,6 +70,19 @@ func (p *Packet) String() string {
 // Response return response packet
 func (p *Packet) Response() *Packet {
 	r := *p
-	r.Rid = r.Cid
+	switch r.Type {
+	case PacketTypeSubscribe:
+		r.Type = PacketTypeSubscribed
+	case PacketTypeUnsubscribe:
+		r.Type = PacketTypeUnsubscribed
+	case PacketTypePing:
+		r.Type = PacketTypePong
+	}
 	return &r
+}
+
+// SetError set error message
+func (p *Packet) SetError(err error) *Packet {
+	p.Error = err
+	return p
 }
