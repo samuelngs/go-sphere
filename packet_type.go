@@ -17,6 +17,10 @@ const (
 	PacketTypeSubscribe
 	// PacketTypeUnsubscribe denotes an unsubscribe request.
 	PacketTypeUnsubscribe
+	// PacketTypeSubscribed denotes a response of subscribe request.
+	PacketTypeSubscribed
+	// PacketTypeUnsubscribed denotes a response of unsubscribe request.
+	PacketTypeUnsubscribed
 	// PacketTypePing denotes an ping message.
 	PacketTypePing
 	// PacketTypePong denotes an pong message.
@@ -31,6 +35,8 @@ var PacketTypeCode = [...]string{
 	"channel",
 	"subscribe",
 	"unsubscribe",
+	"subscribed",
+	"unsubscribed",
 	"ping",
 	"pong",
 	"unknown",
@@ -53,8 +59,12 @@ func (p *PacketType) UnmarshalJSON(b []byte) (err error) {
 	case PacketTypeCode[3]:
 		*p = PacketTypeUnsubscribe
 	case PacketTypeCode[4]:
-		*p = PacketTypePing
+		*p = PacketTypeSubscribed
 	case PacketTypeCode[5]:
+		*p = PacketTypeUnsubscribed
+	case PacketTypeCode[6]:
+		*p = PacketTypePing
+	case PacketTypeCode[6]:
 		*p = PacketTypePong
 	default:
 		*p = PacketTypeUnknown
