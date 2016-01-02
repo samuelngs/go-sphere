@@ -20,10 +20,27 @@ var (
 	}()
 )
 
+type TestSphereModel struct {
+	*ChannelModel
+}
+
+func (m *TestSphereModel) Subscribe(room string, connection *Connection) bool {
+	return true
+}
+
+func (m *TestSphereModel) Disconnect(room string, connection *Connection) bool {
+	return true
+}
+
+func (m *TestSphereModel) Receive(event string, message string) (string, error) {
+	return "you_got_me", nil
+}
+
 func init() {
 	gin.SetMode(gin.ReleaseMode)
 	a := NewRedisBroker()
 	s, r := NewSphere(a), gin.New()
+	s.ChannelModels(&TestSphereModel{ExtendChannelModel("test")})
 	r.GET("/sync", func(c *gin.Context) {
 		s.Handler(c.Writer, c.Request)
 	})
@@ -116,4 +133,82 @@ func TestSphereMessagePingPong(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	<-done
+}
+
+func TestSphereSubscribeChannel(t *testing.T) {
+	done := make(chan error)
+	c, _, err := CreateConnection()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	defer c.Close()
+	go func() {
+		for {
+			_, _, err := c.ReadMessage()
+			if err != nil {
+				done <- err
+				return
+			}
+			done <- nil
+			return
+		}
+	}()
+	p := &Packet{Type: PacketTypeSubscribe, Namespace: "test", Room: "helloworld"}
+	res, err := p.toJSON()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	if err := c.WriteMessage(TextMessage, res); err != nil {
+		t.Fatal(err.Error())
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err.Error())
+	}
+}
+
+func TestSphereChannelMessage(t *testing.T) {
+	done := make(chan error)
+	c, _, err := CreateConnection()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	defer c.Close()
+	go func() {
+		for {
+			_, msg, err := c.ReadMessage()
+			if err != nil {
+				done <- err
+				return
+			}
+			p, err := ParsePacket(msg)
+			if err != nil {
+				done <- err
+			} else {
+				switch {
+				case p.Type == PacketTypeSubscribed && p.Error == nil:
+					m := &Packet{Type: PacketTypeChannel, Namespace: "test", Room: "helloworld", Message: &Message{Event: "HelloEvent", Data: "HelloWorld"}}
+					if json, err := m.toJSON(); err == nil {
+						if err := c.WriteMessage(TextMessage, json); err != nil {
+							done <- err
+						}
+					} else {
+						done <- err
+					}
+				case p.Type == PacketTypeChannel && p.Error == nil:
+					done <- nil
+				}
+			}
+		}
+	}()
+	p := &Packet{Type: PacketTypeSubscribe, Namespace: "test", Room: "helloworld"}
+	res, err := p.toJSON()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	if err := c.WriteMessage(TextMessage, res); err != nil {
+		t.Fatal(err.Error())
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err.Error())
+	}
 }
