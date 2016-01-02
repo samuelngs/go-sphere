@@ -301,8 +301,8 @@ func (sphere *Sphere) publish(p *Packet, conn *Connection) error {
 		return err
 	}
 	d := p.Response()
-	if str, ok := res.(string); ok {
-		d.Message.Data = str
+	if res != "" {
+		d.Message.Data = res
 	}
 	if sphere.agent.IsSubscribed(channel.namespace, channel.room) {
 		sphere.agent.OnPublish(channel, d)
