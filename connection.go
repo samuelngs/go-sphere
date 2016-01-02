@@ -1,6 +1,7 @@
 package sphere
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -41,6 +42,8 @@ func (conn *Connection) queue() {
 		select {
 		case data := <-conn.send:
 			conn.emit(TextMessage, data)
+		case data := <-conn.receive:
+			fmt.Println(data.String())
 		}
 	}
 }
