@@ -100,8 +100,8 @@ func (sphere *Sphere) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Models channel models
-func (sphere *Sphere) Models(models ...IChannels) {
+// ChannelModels channel models
+func (sphere *Sphere) ChannelModels(models ...IChannels) {
 	for _, model := range models {
 		if !sphere.models.Has(model.Namespace()) {
 			sphere.models.Set(model.Namespace(), model)
