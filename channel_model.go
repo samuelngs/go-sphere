@@ -5,7 +5,7 @@ type IChannels interface {
 	Namespace() string
 	Subscribe(string, *Connection) bool
 	Disconnect(string, *Connection) bool
-	Receive(string, string) (interface{}, error)
+	Receive(string, string) (string, error)
 }
 
 // ExtendChannelModel lets developer create a IChannals compatible struct
@@ -34,6 +34,6 @@ func (m *ChannelModel) Disconnect(room string, connection *Connection) bool {
 }
 
 // Receive defines the action when websocket server receive message from user in this channel
-func (m *ChannelModel) Receive(event string, message string) (interface{}, error) {
-	return nil, nil
+func (m *ChannelModel) Receive(event string, message string) (string, error) {
+	return "", nil
 }
