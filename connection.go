@@ -53,7 +53,6 @@ func (conn *Connection) emit(mt int, payload interface{}, responses ...bool) err
 	conn.SetWriteDeadline(time.Now().Add(writeWait))
 	switch msg := payload.(type) {
 	case []byte:
-		conn.cid++
 		return conn.WriteMessage(mt, msg)
 	case *Packet:
 		response := false
@@ -64,7 +63,6 @@ func (conn *Connection) emit(mt int, payload interface{}, responses ...bool) err
 		if msg == nil {
 			return ErrBadScheme
 		}
-		conn.cid++
 		if !response {
 			msg.Cid = conn.cid
 		}
@@ -74,6 +72,9 @@ func (conn *Connection) emit(mt int, payload interface{}, responses ...bool) err
 		}
 		return conn.WriteMessage(TextMessage, json)
 	}
+	defer func() {
+		conn.cid++
+	}()
 	return nil
 }
 
