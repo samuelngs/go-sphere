@@ -7,7 +7,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/xid"
-	"github.com/streamrail/concurrent-map"
 )
 
 const (
@@ -66,9 +65,9 @@ func NewSphere(brokers ...Agent) *Sphere {
 	// creates sphere instance
 	sphere := &Sphere{
 		agent:       broker,
-		connections: cmap.New(),
-		channels:    cmap.New(),
-		models:      cmap.New(),
+		connections: NewConnectionMap(),
+		channels:    NewChannelMap(),
+		models:      NewChannelModelMap(),
 	}
 	return sphere
 }
@@ -78,11 +77,11 @@ type Sphere struct {
 	// a broker agent
 	agent Agent
 	// list of active connections
-	connections cmap.ConcurrentMap
+	connections ConnectionMap
 	// list of channels
-	channels cmap.ConcurrentMap
+	channels ChannelMap
 	// list of models
-	models cmap.ConcurrentMap
+	models ChannelModelMap
 }
 
 // Handler handles and creates websocket connection
@@ -93,7 +92,7 @@ func (sphere *Sphere) Handler(w http.ResponseWriter, r *http.Request) {
 		sphere.read(conn)
 		defer func() {
 			for item := range conn.channels.Iter() {
-				channel := item.Val.(*Channel)
+				channel := item.Val
 				sphere.unsubscribe(channel.namespace, channel.room, conn)
 			}
 			sphere.connections.Remove(conn.id)
@@ -167,7 +166,10 @@ func (sphere *Sphere) process(conn *Connection, msg []byte) {
 			}
 		case PacketTypeSubscribe:
 			if p.Namespace != "" && p.Room != "" {
-				sphere.subscribe(p.Namespace, p.Room, conn)
+				err := sphere.subscribe(p.Namespace, p.Room, conn)
+				r := p.Response()
+				r.SetError(err)
+				conn.emit(TextMessage, r, true)
 			} else {
 				p.Error = ErrBadScheme
 				if json, err := p.toJSON(); err == nil {
@@ -191,8 +193,8 @@ func (sphere *Sphere) process(conn *Connection, msg []byte) {
 				}
 			}
 		case PacketTypePing:
-			p.Type = PacketTypePong
-			if json, err := p.toJSON(); err == nil {
+			r := p.Response()
+			if json, err := r.toJSON(); err == nil {
 				conn.send <- json
 			}
 		case PacketTypeMessage:
@@ -211,7 +213,7 @@ func (sphere *Sphere) channel(namespace string, room string, autoCreateOpts ...b
 	name := sphere.agent.ChannelName(namespace, room)
 	go func() {
 		if tmp, ok := sphere.channels.Get(name); ok {
-			c <- tmp.(*Channel)
+			c <- tmp
 		} else {
 			if autoCreateOpt {
 				channel := NewChannel(namespace, room)
@@ -231,7 +233,7 @@ func (sphere *Sphere) subscribe(namespace string, room string, conn *Connection)
 		return ErrUnsupportedNamespace
 	}
 	if tmp, ok := sphere.models.Get(namespace); ok {
-		model = tmp.(IChannels)
+		model = tmp
 	} else {
 		return ErrUnsupportedNamespace
 	}
@@ -254,7 +256,7 @@ func (sphere *Sphere) unsubscribe(namespace string, room string, conn *Connectio
 		return ErrUnsupportedNamespace
 	}
 	if tmp, ok := sphere.models.Get(namespace); ok {
-		model = tmp.(IChannels)
+		model = tmp
 	} else {
 		return ErrUnsupportedNamespace
 	}
@@ -279,7 +281,7 @@ func (sphere *Sphere) publish(p *Packet, conn *Connection) error {
 		return ErrUnsupportedNamespace
 	}
 	if tmp, ok := sphere.models.Get(p.Namespace); ok {
-		model = tmp.(IChannels)
+		model = tmp
 	} else {
 		return ErrUnsupportedNamespace
 	}
