@@ -27,9 +27,28 @@ func ParsePacket(data []byte) (*Packet, error) {
 	return p, nil
 }
 
-// Packet.toJSON returns json byte array from Packet
-func (p *Packet) toJSON() ([]byte, error) {
+// ToJSON returns json byte array from Packet
+func (p *Packet) ToJSON() ([]byte, error) {
 	return json.Marshal(p)
+}
+
+// ToBytes returns byte array from Packet
+func (p *Packet) ToBytes() ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(p)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// String returns Packet in string format
+func (p *Packet) String() string {
+	if json, err := p.ToJSON(); err == nil {
+		return string(json[:])
+	}
+	return ""
 }
 
 // MarshalJSON handler
@@ -47,24 +66,6 @@ func (p *Packet) MarshalJSON() ([]byte, error) {
 		Message   *Message   `json:"message,omitempty"`
 		Machine   string     `json:"-"`
 	}{p.Type, p.Namespace, p.Room, p.Cid, err, p.Message, p.Machine})
-}
-
-// Packet.toBytes returns byte array from Packet
-func (p *Packet) toBytes() ([]byte, error) {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(p)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-func (p *Packet) String() string {
-	if json, err := p.toJSON(); err == nil {
-		return string(json[:])
-	}
-	return ""
 }
 
 // Response return response packet
