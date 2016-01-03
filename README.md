@@ -6,6 +6,103 @@
 
 Go-Sphere is an open source realtime framework to scale websocket horizontally (across multiple hosts) via pub/sub  synchronization. Sphere supports both real-time bidirectional event-based communication and group communication.
 
+## Usage
+
+To create websocket server with gin webserver
+```go
+package main
+
+import (
+  "github.com/samuelngs/go-sphere"
+  "github.com/gin-gonic/gin"
+)
+
+func main() {
+    // create websocket server
+    s := sphere.Default()
+    // create http server
+    r := gin.Default()
+    // attach websocket handler
+    r.GET("/sync", func(c *gin.Context) {
+      s.Handler(c.Writer, c.Request)
+    })
+    // listen and serve on 0.0.0.0:8080
+    r.Run(":8080") 
+}
+```
+
+Scale websocket horizontally via pub/sub (broker) synchronization 
+```go
+b := sphere.NewRedisBroker()
+s := sphere.Default(b) // <= pass in redis broker when creates websocket server
+```
+
+Use custom pubsub broker/agent
+```go
+type CustomBroker struct {
+  *Broker
+}
+
+func (broker *CustomBroker) OnSubscribe(channel *Channel) error {
+  return nil
+}
+
+func (broker *CustomBroker) OnUnsubscribe(channel *Channel) error {
+  return nil
+}
+
+func (broker *CustomBroker) OnPublish(channel *Channel, data *Packet) error {
+  return nil
+}
+
+func (broker *CustomBroker) OnMessage(channel *Channel, data *Packet) error {
+  return nil
+}
+
+func main() {
+  customBroker := &CustomBroker{ExtendBroker()}
+  s := sphere.Default(customBroker)
+}
+```
+
+Custom channel events
+```go
+type TestSphereModel struct {
+  *ChannelModel
+}
+
+func (m *TestSphereModel) Subscribe(room string, connection *Connection) bool {
+  // return false if you want to reject channel subscribe request
+  return true
+}
+
+func (m *TestSphereModel) Disconnect(room string, connection *Connection) bool {
+  return true
+}
+
+func (m *TestSphereModel) Receive(event string, message string) (string, error) {
+  return "response_data", nil
+}
+
+func main() {
+  s := sphere.Default()
+  s.ChannelModels(&TestSphereModel{ExtendChannelModel("test")}) // <= set channel namespace "test"
+}
+
+```
+
+## Documentation
+
+`go doc` format documentation for this project can be viewed online without installing the package by using the GoDoc page at: https://godoc.org/github.com/samuelngs/go-sphere
+
+## Contributing
+
+Everyone is encouraged to help improve this project. Here are a few ways you can help:
+
+- [Report bugs](https://github.com/samuelngs/go-sphere/issues)
+- Fix bugs and [submit pull requests](https://github.com/samuelngs/go-sphere/pulls)
+- Write, clarify, or fix documentation
+- Suggest or add new features
 
 ## License ##
 
