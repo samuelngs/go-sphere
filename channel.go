@@ -4,7 +4,7 @@ import "fmt"
 
 // NewChannel creates new Channel instance
 func NewChannel(namespace string, room string) *Channel {
-	return &Channel{namespace: namespace, room: room, state: ChannelStatePending, connections: NewConnectionMap()}
+	return &Channel{namespace: namespace, room: room, state: ChannelStatePending, connections: newConnectionMap()}
 }
 
 // Channel let you subscribe to and watch for incoming data which is published on that channel by other clients or the server
@@ -12,7 +12,7 @@ type Channel struct {
 	namespace   string
 	room        string
 	state       ChannelState
-	connections ConnectionMap
+	connections connectionmap
 }
 
 // Name returns the name of the channel
