@@ -96,7 +96,7 @@ func TestSphereSendMessage(t *testing.T) {
 	}
 	defer c.Close()
 	p := &Packet{Type: PacketTypePing}
-	res, err := p.toJSON()
+	res, err := p.ToJSON()
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -124,7 +124,7 @@ func TestSphereMessagePingPong(t *testing.T) {
 		}
 	}()
 	p := &Packet{Type: PacketTypePing}
-	res, err := p.toJSON()
+	res, err := p.ToJSON()
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -153,7 +153,7 @@ func TestSphereSubscribeChannel(t *testing.T) {
 		}
 	}()
 	p := &Packet{Type: PacketTypeSubscribe, Namespace: "test", Room: "helloworld"}
-	res, err := p.toJSON()
+	res, err := p.ToJSON()
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -186,7 +186,7 @@ func TestSphereChannelMessage(t *testing.T) {
 				switch {
 				case p.Type == PacketTypeSubscribed && p.Error == nil:
 					m := &Packet{Type: PacketTypeChannel, Namespace: "test", Room: "helloworld", Message: &Message{Event: "HelloEvent", Data: "HelloWorld"}}
-					if json, err := m.toJSON(); err == nil {
+					if json, err := m.ToJSON(); err == nil {
 						if err := c.WriteMessage(TextMessage, json); err != nil {
 							done <- err
 						}
@@ -200,7 +200,7 @@ func TestSphereChannelMessage(t *testing.T) {
 		}
 	}()
 	p := &Packet{Type: PacketTypeSubscribe, Namespace: "test", Room: "helloworld"}
-	res, err := p.toJSON()
+	res, err := p.ToJSON()
 	if err != nil {
 		t.Fatal(err.Error())
 	}
