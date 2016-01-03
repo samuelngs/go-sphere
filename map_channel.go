@@ -6,43 +6,43 @@ import (
 	"sync"
 )
 
-// ChannelShardCount nums of shard
-var ChannelShardCount = 32
+// channelShardCount nums of shard
+var channelShardCount = 32
 
-// ChannelMap is a "thread" safe map of type string:Anything.
-// To avoid lock bottlenecks this map is dived to several (ChannelShardCount) map shards.
-type ChannelMap []*ChannelMapShared
+// channelmap is a "thread" safe map of type string:Anything.
+// To avoid lock bottlenecks this map is dived to several (channelShardCount) map shards.
+type channelmap []*channelmapshared
 
-// ChannelMapShared is a "thread" safe string to anything map.
-type ChannelMapShared struct {
+// channelmapshared is a "thread" safe string to anything map.
+type channelmapshared struct {
 	items        map[string]*Channel
 	sync.RWMutex // Read Write mutex, guards access to internal map.
 }
 
-// ChannelTuple used by the Iter & IterBuffered functions to wrap two variables together over a channel,
-type ChannelTuple struct {
+// channeltuple used by the Iter & IterBuffered functions to wrap two variables together over a channel,
+type channeltuple struct {
 	Key string
 	Val *Channel
 }
 
-// NewChannelMap Creates a new concurrent map.
-func NewChannelMap() ChannelMap {
-	m := make(ChannelMap, ChannelShardCount)
-	for i := 0; i < ChannelShardCount; i++ {
-		m[i] = &ChannelMapShared{items: make(map[string]*Channel)}
+// newChannelMap Creates a new concurrent map.
+func newChannelMap() channelmap {
+	m := make(channelmap, channelShardCount)
+	for i := 0; i < channelShardCount; i++ {
+		m[i] = &channelmapshared{items: make(map[string]*Channel)}
 	}
 	return m
 }
 
 // GetShard returns shard under given key
-func (m ChannelMap) GetShard(key string) *ChannelMapShared {
+func (m channelmap) GetShard(key string) *channelmapshared {
 	hasher := fnv.New32()
 	hasher.Write([]byte(key))
-	return m[uint(hasher.Sum32())%uint(ChannelShardCount)]
+	return m[uint(hasher.Sum32())%uint(channelShardCount)]
 }
 
 // Set sets the given value under the specified key.
-func (m *ChannelMap) Set(key string, value *Channel) {
+func (m *channelmap) Set(key string, value *Channel) {
 	// Get map shard.
 	shard := m.GetShard(key)
 	shard.Lock()
@@ -51,7 +51,7 @@ func (m *ChannelMap) Set(key string, value *Channel) {
 }
 
 // SetIfAbsent sets the given value under the specified key if no value was associated with it.
-func (m *ChannelMap) SetIfAbsent(key string, value *Channel) bool {
+func (m *channelmap) SetIfAbsent(key string, value *Channel) bool {
 	// Get map shard.
 	shard := m.GetShard(key)
 	shard.Lock()
@@ -64,7 +64,7 @@ func (m *ChannelMap) SetIfAbsent(key string, value *Channel) bool {
 }
 
 // Get retrieves an element from map under given key.
-func (m ChannelMap) Get(key string) (*Channel, bool) {
+func (m channelmap) Get(key string) (*Channel, bool) {
 	// Get shard
 	shard := m.GetShard(key)
 	shard.RLock()
@@ -76,9 +76,9 @@ func (m ChannelMap) Get(key string) (*Channel, bool) {
 }
 
 // Count returns the number of elements within the map.
-func (m ChannelMap) Count() int {
+func (m channelmap) Count() int {
 	count := 0
-	for i := 0; i < ChannelShardCount; i++ {
+	for i := 0; i < channelShardCount; i++ {
 		shard := m[i]
 		shard.RLock()
 		count += len(shard.items)
@@ -88,7 +88,7 @@ func (m ChannelMap) Count() int {
 }
 
 // Has looks up an item under specified key
-func (m *ChannelMap) Has(key string) bool {
+func (m *channelmap) Has(key string) bool {
 	// Get shard
 	shard := m.GetShard(key)
 	shard.RLock()
@@ -100,7 +100,7 @@ func (m *ChannelMap) Has(key string) bool {
 }
 
 // Remove removes an element from the map.
-func (m *ChannelMap) Remove(key string) {
+func (m *channelmap) Remove(key string) {
 	// Try to get shard.
 	shard := m.GetShard(key)
 	shard.Lock()
@@ -109,20 +109,20 @@ func (m *ChannelMap) Remove(key string) {
 }
 
 // IsEmpty checks if map is empty.
-func (m *ChannelMap) IsEmpty() bool {
+func (m *channelmap) IsEmpty() bool {
 	return m.Count() == 0
 }
 
 // Iter returns an iterator which could be used in a for range loop.
-func (m ChannelMap) Iter() <-chan ChannelTuple {
-	ch := make(chan ChannelTuple)
+func (m channelmap) Iter() <-chan channeltuple {
+	ch := make(chan channeltuple)
 	go func() {
 		// Foreach shard.
 		for _, shard := range m {
 			// Foreach key, value pair.
 			shard.RLock()
 			for key, val := range shard.items {
-				ch <- ChannelTuple{key, val}
+				ch <- channeltuple{key, val}
 			}
 			shard.RUnlock()
 		}
@@ -132,15 +132,15 @@ func (m ChannelMap) Iter() <-chan ChannelTuple {
 }
 
 // IterBuffered returns a buffered iterator which could be used in a for range loop.
-func (m ChannelMap) IterBuffered() <-chan ChannelTuple {
-	ch := make(chan ChannelTuple, m.Count())
+func (m channelmap) IterBuffered() <-chan channeltuple {
+	ch := make(chan channeltuple, m.Count())
 	go func() {
 		// Foreach shard.
 		for _, shard := range m {
 			// Foreach key, value pair.
 			shard.RLock()
 			for key, val := range shard.items {
-				ch <- ChannelTuple{key, val}
+				ch <- channeltuple{key, val}
 			}
 			shard.RUnlock()
 		}
@@ -149,8 +149,8 @@ func (m ChannelMap) IterBuffered() <-chan ChannelTuple {
 	return ch
 }
 
-// MarshalJSON reviles ChannelMap "private" variables to json marshal.
-func (m ChannelMap) MarshalJSON() ([]byte, error) {
+// MarshalJSON reviles channelmap "private" variables to json marshal.
+func (m channelmap) MarshalJSON() ([]byte, error) {
 	// Create a temporary map, which will hold all item spread across shards.
 	tmp := make(map[string]*Channel)
 
