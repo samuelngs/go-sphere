@@ -65,9 +65,9 @@ func Default(brokers ...Agent) *Sphere {
 	// creates sphere instance
 	sphere := &Sphere{
 		agent:       broker,
-		connections: NewConnectionMap(),
-		channels:    NewChannelMap(),
-		models:      NewChannelModelMap(),
+		connections: newConnectionMap(),
+		channels:    newChannelMap(),
+		models:      newChannelModelMap(),
 	}
 	return sphere
 }
@@ -77,11 +77,11 @@ type Sphere struct {
 	// a broker agent
 	agent Agent
 	// list of active connections
-	connections ConnectionMap
+	connections connectionmap
 	// list of channels
-	channels ChannelMap
+	channels channelmap
 	// list of models
-	models ChannelModelMap
+	models channelmodelmap
 }
 
 // Handler handles and creates websocket connection
@@ -160,7 +160,7 @@ func (sphere *Sphere) process(conn *Connection, msg []byte) {
 				sphere.publish(p, conn)
 			} else {
 				p.Error = ErrBadScheme
-				if json, err := p.toJSON(); err == nil {
+				if json, err := p.ToJSON(); err == nil {
 					conn.send <- json
 				}
 			}
@@ -172,7 +172,7 @@ func (sphere *Sphere) process(conn *Connection, msg []byte) {
 				conn.emit(TextMessage, r, true)
 			} else {
 				p.Error = ErrBadScheme
-				if json, err := p.toJSON(); err == nil {
+				if json, err := p.ToJSON(); err == nil {
 					conn.send <- json
 				}
 			}
@@ -182,19 +182,19 @@ func (sphere *Sphere) process(conn *Connection, msg []byte) {
 					sphere.unsubscribe(p.Namespace, p.Room, conn)
 				} else {
 					p.Error = ErrUnsupportedNamespace
-					if json, err := p.toJSON(); err == nil {
+					if json, err := p.ToJSON(); err == nil {
 						conn.send <- json
 					}
 				}
 			} else {
 				p.Error = ErrBadScheme
-				if json, err := p.toJSON(); err == nil {
+				if json, err := p.ToJSON(); err == nil {
 					conn.send <- json
 				}
 			}
 		case PacketTypePing:
 			r := p.Response()
-			if json, err := r.toJSON(); err == nil {
+			if json, err := r.ToJSON(); err == nil {
 				conn.send <- json
 			}
 		case PacketTypeMessage:
