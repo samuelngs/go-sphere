@@ -1,6 +1,11 @@
 # go-sphere
 
-Sphere helps you scale websocket horizontally (across multiple hosts)
+[![Build Status](https://travis-ci.org/samuelngs/go-sphere.svg?branch=master)](https://travis-ci.org/samuelngs/go-sphere)
+[![Coverage Status](https://coveralls.io/repos/samuelngs/go-sphere/badge.svg?branch=master&service=github)](https://coveralls.io/github/samuelngs/go-sphere?branch=master)
+[![GoDoc](https://godoc.org/github.com/samuelngs/go-sphere?status.svg)](https://godoc.org/github.com/samuelngs/go-sphere)
+
+Go-Sphere is an open source realtime framework to scale websocket horizontally (across multiple hosts) via pub/sub  synchronization. Sphere supports both real-time bidirectional event-based communication and group communication.
+
 
 ## License ##
 
