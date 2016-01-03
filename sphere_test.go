@@ -38,7 +38,7 @@ func (m *TestSphereModel) Receive(event string, message string) (string, error) 
 
 func init() {
 	gin.SetMode(gin.ReleaseMode)
-	s, r := NewSphere(), gin.New()
+	s, r := Default(), gin.New()
 	s.ChannelModels(&TestSphereModel{ExtendChannelModel("test")})
 	r.GET("/sync", func(c *gin.Context) {
 		s.Handler(c.Writer, c.Request)

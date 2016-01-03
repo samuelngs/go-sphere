@@ -50,8 +50,8 @@ var (
 	guid = xid.New()
 )
 
-// NewSphere creates a new instance of Sphere
-func NewSphere(brokers ...Agent) *Sphere {
+// Default creates a new instance of Sphere
+func Default(brokers ...Agent) *Sphere {
 	// declare agent
 	var broker Agent
 	// set declared agent if parameter exists
