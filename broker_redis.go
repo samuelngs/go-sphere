@@ -90,7 +90,7 @@ func (broker *RedisBroker) OnPublish(channel *Channel, data *Packet) error {
 func (broker *RedisBroker) OnMessage(channel *Channel, data *Packet) error {
 	c := make(chan error)
 	go func() {
-		if json, err := data.toJSON(); err == nil {
+		if json, err := data.ToJSON(); err == nil {
 			channel.emit(TextMessage, json, nil)
 		}
 		c <- nil
