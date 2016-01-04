@@ -2,8 +2,8 @@ package sphere
 
 import "github.com/gorilla/websocket"
 
-// NewSimpleBroker creates a new instance of SimpleBroker
-func NewSimpleBroker() *SimpleBroker {
+// DefaultSimpleBroker creates a new instance of SimpleBroker
+func DefaultSimpleBroker() *SimpleBroker {
 	return &SimpleBroker{
 		ExtendBroker(),
 	}

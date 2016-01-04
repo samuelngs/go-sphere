@@ -43,7 +43,7 @@ func Default(brokers ...IBroker) *Sphere {
 		break
 	}
 	if broker == nil {
-		broker = NewSimpleBroker()
+		broker = DefaultSimpleBroker()
 	}
 	// creates sphere instance
 	sphere := &Sphere{
