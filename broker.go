@@ -19,13 +19,13 @@ const (
 
 // IBroker represents Broker instance
 type IBroker interface {
-	ID() string                          // => Broker ID
-	ChannelName(string, string) string   // => Broker generate channel name with namespace and channel
-	IsSubscribed(string, string) bool    // => Broker channel subscribe state
-	OnSubscribe(*Channel, chan IError)   // => Broker OnSubscribe
-	OnUnsubscribe(*Channel, chan IError) // => Broker OnUnsubscribe
-	OnPublish(*Channel, *Packet) error   // => Broker OnPublish
-	OnMessage(*Channel, *Packet) error   // => Broker OnMessage
+	ID() string                            // => Broker ID
+	ChannelName(string, string) string     // => Broker generate channel name with namespace and channel
+	IsSubscribed(string, string) bool      // => Broker channel subscribe state
+	OnSubscribe(*Channel, chan<- IError)   // => Broker OnSubscribe
+	OnUnsubscribe(*Channel, chan<- IError) // => Broker OnUnsubscribe
+	OnPublish(*Channel, *Packet) error     // => Broker OnPublish
+	OnMessage(*Channel, *Packet) error     // => Broker OnMessage
 }
 
 // ExtendBroker creates a broker instance
@@ -60,12 +60,12 @@ func (broker *Broker) IsSubscribed(namespace string, room string) bool {
 }
 
 // OnSubscribe when websocket subscribes to a channel
-func (broker *Broker) OnSubscribe(channel *Channel, done chan IError) {
+func (broker *Broker) OnSubscribe(channel *Channel, done chan<- IError) {
 	done <- errors.New(brokerErrorOverrideOnSubscribe)
 }
 
 // OnUnsubscribe when websocket unsubscribes from a channel
-func (broker *Broker) OnUnsubscribe(channel *Channel, done chan IError) {
+func (broker *Broker) OnUnsubscribe(channel *Channel, done chan<- IError) {
 	done <- errors.New(brokerErrorOverrideOnUnsubscribe)
 }
 

@@ -28,7 +28,7 @@ type RedisBroker struct {
 }
 
 // OnSubscribe when websocket subscribes to a channel
-func (broker *RedisBroker) OnSubscribe(channel *Channel, done chan IError) {
+func (broker *RedisBroker) OnSubscribe(channel *Channel, done chan<- IError) {
 	go func() {
 		// return if pubsub is already existed
 		if broker.store.Has(channel.Name()) {
@@ -55,7 +55,7 @@ func (broker *RedisBroker) OnSubscribe(channel *Channel, done chan IError) {
 }
 
 // OnUnsubscribe when websocket unsubscribes from a channel
-func (broker *RedisBroker) OnUnsubscribe(channel *Channel, done chan IError) {
+func (broker *RedisBroker) OnUnsubscribe(channel *Channel, done chan<- IError) {
 	go func() {
 		if tmp, ok := broker.store.Get(channel.Name()); ok {
 			if pubsub, ok := tmp.(*redis.PubSub); ok {

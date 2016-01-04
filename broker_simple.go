@@ -20,7 +20,7 @@ type simpleBrokerPubSub struct {
 }
 
 // OnSubscribe when websocket subscribes to a channel
-func (broker *SimpleBroker) OnSubscribe(channel *Channel, done chan IError) {
+func (broker *SimpleBroker) OnSubscribe(channel *Channel, done chan<- IError) {
 	go func() {
 		if broker.store.Has(channel.Name()) {
 			done <- nil
@@ -42,7 +42,7 @@ func (broker *SimpleBroker) OnSubscribe(channel *Channel, done chan IError) {
 }
 
 // OnUnsubscribe when websocket unsubscribes from a channel
-func (broker *SimpleBroker) OnUnsubscribe(channel *Channel, done chan IError) {
+func (broker *SimpleBroker) OnUnsubscribe(channel *Channel, done chan<- IError) {
 	go func() {
 		if !broker.store.Has(channel.Name()) {
 			done <- nil
