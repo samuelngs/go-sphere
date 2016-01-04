@@ -8,13 +8,13 @@ import (
 
 const (
 	// BrokerErrorOverrideOnSubscribe to warn use to override OnSubsribe function
-	BrokerErrorOverrideOnSubscribe = "please override OnSubscribe"
+	brokerErrorOverrideOnSubscribe = "please override OnSubscribe"
 	// BrokerErrorOverrideOnUnsubscribe to warn use to override OnUnsubscribe function
-	BrokerErrorOverrideOnUnsubscribe = "please override OnUnsubscribe"
+	brokerErrorOverrideOnUnsubscribe = "please override OnUnsubscribe"
 	// BrokerErrorOverrideOnPublish to warn use to override OnPublish function
-	BrokerErrorOverrideOnPublish = "please override OnPublish"
+	brokerErrorOverrideOnPublish = "please override OnPublish"
 	// BrokerErrorOverrideOnMessage to warn use to override OnMessage function
-	BrokerErrorOverrideOnMessage = "please override OnMessage"
+	brokerErrorOverrideOnMessage = "please override OnMessage"
 )
 
 // IBroker represents Broker instance
@@ -61,20 +61,20 @@ func (broker *Broker) IsSubscribed(namespace string, room string) bool {
 
 // OnSubscribe when websocket subscribes to a channel
 func (broker *Broker) OnSubscribe(channel *Channel, done chan IError) {
-	done <- errors.New(BrokerErrorOverrideOnSubscribe)
+	done <- errors.New(brokerErrorOverrideOnSubscribe)
 }
 
 // OnUnsubscribe when websocket unsubscribes from a channel
 func (broker *Broker) OnUnsubscribe(channel *Channel, done chan IError) {
-	done <- errors.New(BrokerErrorOverrideOnUnsubscribe)
+	done <- errors.New(brokerErrorOverrideOnUnsubscribe)
 }
 
 // OnPublish when websocket publishes data to a particular channel from the current broker
 func (broker *Broker) OnPublish(channel *Channel, data *Packet) error {
-	return errors.New(BrokerErrorOverrideOnPublish)
+	return errors.New(brokerErrorOverrideOnPublish)
 }
 
 // OnMessage when websocket receive data from the broker subscriber
 func (broker *Broker) OnMessage(channel *Channel, data *Packet) error {
-	return errors.New(BrokerErrorOverrideOnMessage)
+	return errors.New(brokerErrorOverrideOnMessage)
 }
