@@ -22,22 +22,6 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 	// Maximum message size allowed from peer.
 	maxMessageSize = 512
-	// TextMessage denotes a text data message. The text message payload is
-	// interpreted as UTF-8 encoded text data.
-	TextMessage = 1
-	// BinaryMessage denotes a binary data message.
-	BinaryMessage = 2
-	// CloseMessage denotes a close control message. The optional message
-	// payload contains a numeric code and text. Use the FormatCloseMessage
-	// function to format a close message payload.
-	CloseMessage = 8
-	// PingMessage denotes a ping control message. The optional message payload
-	// is UTF-8 encoded text.
-	PingMessage = 9
-	// PongMessage denotes a ping control message. The optional message payload
-	// is UTF-8 encoded text.
-	PongMessage = 10
-	// Message Types
 )
 
 var (
@@ -51,9 +35,9 @@ var (
 )
 
 // Default creates a new instance of Sphere
-func Default(brokers ...Agent) *Sphere {
+func Default(brokers ...IBroker) *Sphere {
 	// declare agent
-	var broker Agent
+	var broker IBroker
 	// set declared agent if parameter exists
 	for _, i := range brokers {
 		broker = i
@@ -64,7 +48,7 @@ func Default(brokers ...Agent) *Sphere {
 	}
 	// creates sphere instance
 	sphere := &Sphere{
-		agent:       broker,
+		broker:      broker,
 		connections: newConnectionMap(),
 		channels:    newChannelMap(),
 		models:      newChannelModelMap(),
@@ -75,7 +59,7 @@ func Default(brokers ...Agent) *Sphere {
 // Sphere represents an entire Websocket instance
 type Sphere struct {
 	// a broker agent
-	agent Agent
+	broker IBroker
 	// list of active connections
 	connections connectionmap
 	// list of channels
@@ -88,121 +72,104 @@ type Sphere struct {
 func (sphere *Sphere) Handler(w http.ResponseWriter, r *http.Request) {
 	if conn, err := NewConnection(w, r); err == nil {
 		sphere.connections.Set(conn.id, conn)
-		go sphere.write(conn)
-		sphere.read(conn)
+		// run connection queue
+		go conn.queue()
+		// action after connection disconnected
 		defer func() {
+			// unsubscribe all channels
 			for item := range conn.channels.Iter() {
 				channel := item.Val
 				sphere.unsubscribe(channel.namespace, channel.room, conn)
 			}
+			// close all send and receive buffers
+			conn.close()
+			// remove connection from sphere after disconnect
 			sphere.connections.Remove(conn.id)
 		}()
-	}
-}
-
-// ChannelModels channel models
-func (sphere *Sphere) ChannelModels(models ...IChannels) {
-	for _, model := range models {
-		if !sphere.models.Has(model.Namespace()) {
-			sphere.models.Set(model.Namespace(), model)
-		} else {
-			panic(fmt.Sprintf("model \"%s\" is already existed", model.Namespace()))
-		}
-	}
-}
-
-func (sphere *Sphere) write(conn *Connection) {
-	ticker := time.NewTicker(pingPeriod)
-	defer func() {
-		ticker.Stop()
-	}()
-	for {
-		select {
-		case msg, ok := <-conn.send:
-			if !ok {
-				conn.emit(websocket.CloseMessage, []byte{})
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
 				return
 			}
-			if err := conn.emit(websocket.TextMessage, msg); err != nil {
-				return
-			}
-		case <-ticker.C:
-			if err := conn.emit(websocket.PingMessage, []byte{}); err != nil {
-				return
+			if msg != nil {
+				go sphere.process(conn, msg)
 			}
 		}
 	}
 }
 
-func (sphere *Sphere) read(conn *Connection) {
-	for {
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			return
-		}
-		if msg != nil {
-			go sphere.process(conn, msg)
+// Models load channel or event models
+func (sphere *Sphere) Models(models ...interface{}) {
+	for _, item := range models {
+		switch model := item.(type) {
+		case IChannels:
+			if !sphere.models.Has(model.Namespace()) {
+				sphere.models.Set(model.Namespace(), model)
+			} else {
+				panic(fmt.Sprintf("model \"%s\" is already existed", model.Namespace()))
+			}
 		}
 	}
 }
 
+// Process parses and processes received message
 func (sphere *Sphere) process(conn *Connection, msg []byte) {
+	// convert received bytes to Packet object
 	p, err := ParsePacket(msg)
 	if err != nil {
-		fmt.Printf("Error: %v - %v", err.Error(), string(msg[:]))
+		LogError(err)
 		return
 	}
-	if p != nil {
-		switch p.Type {
-		case PacketTypeChannel:
-			if p.Namespace != "" && p.Room != "" {
-				p.Machine = sphere.agent.ID()
-				sphere.publish(p, conn)
-			} else {
-				p.Error = ErrBadScheme
-				if json, err := p.ToJSON(); err == nil {
-					conn.send <- json
-				}
-			}
-		case PacketTypeSubscribe:
-			if p.Namespace != "" && p.Room != "" {
-				err := sphere.subscribe(p.Namespace, p.Room, conn)
-				r := p.Response()
-				r.SetError(err)
-				conn.emit(TextMessage, r, true)
-			} else {
-				p.Error = ErrBadScheme
-				if json, err := p.ToJSON(); err == nil {
-					conn.send <- json
-				}
-			}
-		case PacketTypeUnsubscribe:
-			if p.Namespace != "" && p.Room != "" {
-				if sphere.models.Has(p.Namespace) {
-					sphere.unsubscribe(p.Namespace, p.Room, conn)
-				} else {
-					p.Error = ErrUnsupportedNamespace
-					if json, err := p.ToJSON(); err == nil {
-						conn.send <- json
-					}
-				}
-			} else {
-				p.Error = ErrBadScheme
-				if json, err := p.ToJSON(); err == nil {
-					conn.send <- json
-				}
-			}
-		case PacketTypePing:
-			r := p.Response()
-			if json, err := r.ToJSON(); err == nil {
-				conn.send <- json
-			}
-		case PacketTypeMessage:
-			conn.receive <- p
+	switch p.Type {
+	case PacketTypeChannel:
+		if p.Namespace != "" && p.Room != "" {
+			// publish message to broker if it is a channel event / message
+			p.Machine = sphere.broker.ID()
+			sphere.publish(p, conn)
+		} else {
+			// if namespace or room is not provided, return error message
+			p.Error = ErrBadScheme
+			conn.send <- p
 		}
+	case PacketTypeSubscribe:
+		if p.Namespace != "" && p.Room != "" {
+			// subscribe connection to channel
+			err := sphere.subscribe(p.Namespace, p.Room, conn)
+			r := p.Response()
+			r.SetError(err)
+			// return success or failure message to user
+			conn.send <- r
+		} else {
+			// if namespace or room is not provided, return error message
+			p.Error = ErrBadScheme
+			conn.send <- p
+		}
+	case PacketTypeUnsubscribe:
+		if p.Namespace != "" && p.Room != "" {
+			// unsubscribe connection from channel
+			if sphere.models.Has(p.Namespace) {
+				sphere.unsubscribe(p.Namespace, p.Room, conn)
+			} else {
+				// if namespace model does not existed, return error
+				p.Error = ErrNotSupported
+				conn.send <- p
+			}
+		} else {
+			// if namespace or room is not provided, return error message
+			p.Error = ErrBadScheme
+			conn.send <- p
+		}
+	case PacketTypePing:
+		// ping-pong
+		r := p.Response()
+		conn.send <- r
+	case PacketTypeMessage:
+		// receive event message
+		conn.receive <- p
 	}
 }
 
+// channel returns Channel object, channel will be automatually created when autoCreateOpts is true
 func (sphere *Sphere) channel(namespace string, room string, autoCreateOpts ...bool) *Channel {
 	c := make(chan *Channel)
 	autoCreateOpt := false
@@ -210,7 +177,7 @@ func (sphere *Sphere) channel(namespace string, room string, autoCreateOpts ...b
 		autoCreateOpt = opt
 		break
 	}
-	name := sphere.agent.ChannelName(namespace, room)
+	name := sphere.broker.ChannelName(namespace, room)
 	go func() {
 		if tmp, ok := sphere.channels.Get(name); ok {
 			c <- tmp
@@ -227,70 +194,83 @@ func (sphere *Sphere) channel(namespace string, room string, autoCreateOpts ...b
 	return <-c
 }
 
+// subscribe trigger Broker OnSubscribe action and put connection into channel connections list
 func (sphere *Sphere) subscribe(namespace string, room string, conn *Connection) error {
 	var model IChannels
 	if !sphere.models.Has(namespace) {
-		return ErrUnsupportedNamespace
+		return ErrNotSupported
 	}
 	if tmp, ok := sphere.models.Get(namespace); ok {
 		model = tmp
 	} else {
-		return ErrUnsupportedNamespace
+		return ErrNotSupported
 	}
-	if accept := model.Subscribe(room, conn); !accept {
-		return ErrNotAuthorized
+	if accept, err := model.Subscribe(room, conn); !accept && err == nil {
+		return ErrUnauthorized
+	} else if !accept && err != nil {
+		return err
 	}
 	channel := sphere.channel(namespace, room, true)
 	if channel == nil {
-		return ErrBadStatus
+		return ErrNotFound
 	}
-	if err := channel.subscribe(conn); err == nil && !sphere.agent.IsSubscribed(channel.namespace, channel.room) {
-		go sphere.agent.OnSubscribe(channel)
+	if err := channel.subscribe(conn); err != nil {
+		return err
+	}
+	if !sphere.broker.IsSubscribed(channel.namespace, channel.room) {
+		c := make(chan IError)
+		go sphere.broker.OnSubscribe(channel, c)
+		return <-c
 	}
 	return nil
 }
 
+// unsubscribe trigger Broker OnUnsubscribe action and remove connection from channel connections list
 func (sphere *Sphere) unsubscribe(namespace string, room string, conn *Connection) error {
 	var model IChannels
 	if !sphere.models.Has(namespace) {
-		return ErrUnsupportedNamespace
+		return ErrNotSupported
 	}
 	if tmp, ok := sphere.models.Get(namespace); ok {
 		model = tmp
 	} else {
-		return ErrUnsupportedNamespace
+		return ErrNotSupported
 	}
-	if success := model.Disconnect(room, conn); !success {
-		return ErrBadStatus
+	if err := model.Disconnect(room, conn); err != nil {
+		return err
 	}
 	channel := sphere.channel(namespace, room, false)
 	if channel == nil {
-		return ErrBadStatus
+		return ErrNotFound
 	}
-	if err := channel.unsubscribe(conn); err == nil && channel.connections.Count() == 0 {
-		if sphere.agent.IsSubscribed(channel.namespace, channel.room) {
-			go sphere.agent.OnUnsubscribe(channel)
+	err := channel.unsubscribe(conn)
+	if err == nil && channel.connections.Count() == 0 {
+		if sphere.broker.IsSubscribed(channel.namespace, channel.room) {
+			c := make(chan IError)
+			go sphere.broker.OnUnsubscribe(channel, c)
+			return <-c
 		}
 	}
-	return nil
+	return err
 }
 
+// publish trigger Broker OnPublish action, send message to user from broker
 func (sphere *Sphere) publish(p *Packet, conn *Connection) error {
 	var model IChannels
 	if !sphere.models.Has(p.Namespace) {
-		return ErrUnsupportedNamespace
+		return ErrNotSupported
 	}
 	if tmp, ok := sphere.models.Get(p.Namespace); ok {
 		model = tmp
 	} else {
-		return ErrUnsupportedNamespace
+		return ErrNotSupported
 	}
 	channel := sphere.channel(p.Namespace, p.Room)
 	if channel == nil {
 		return ErrBadStatus
 	}
 	if !channel.isSubscribed(conn) {
-		return ErrNotAuthorized
+		return ErrNotSubscribed
 	}
 	msg := p.Message
 	if msg == nil || msg.Event == "" {
@@ -304,8 +284,8 @@ func (sphere *Sphere) publish(p *Packet, conn *Connection) error {
 	if res != "" {
 		d.Message.Data = res
 	}
-	if sphere.agent.IsSubscribed(channel.namespace, channel.room) {
-		sphere.agent.OnPublish(channel, d)
+	if sphere.broker.IsSubscribed(channel.namespace, channel.room) {
+		return sphere.broker.OnPublish(channel, d)
 	}
-	return nil
+	return ErrServerErrors
 }
