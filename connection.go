@@ -1,7 +1,6 @@
 package sphere
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 func NewConnection(w http.ResponseWriter, r *http.Request) (*Connection, IError) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err == nil {
-		return &Connection{guid.String(), 0, newChannelMap(), make(chan *Packet), make(chan *Packet), make(chan struct{}), r, ws}, nil
+		return &Connection{guid.String(), 0, newChannelMap(), make(chan *Packet), make(chan struct{}), r, ws}, nil
 	}
 	return nil, err
 }
@@ -27,8 +26,6 @@ type Connection struct {
 	channels channelmap
 	// buffered channel of outbound messages
 	send chan *Packet
-	// buffered channel of inbound messages
-	receive chan *Packet
 	// done channel
 	done chan struct{}
 	// http request
@@ -54,12 +51,7 @@ func (conn *Connection) queue() {
 				LogError(err)
 				return
 			}
-		case packet, ok := <-conn.receive:
-			if ok {
-				fmt.Println(packet.String())
-			}
 		case <-conn.done:
-			close(conn.receive)
 			close(conn.done)
 			return
 		case <-ticker.C:
