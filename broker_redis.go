@@ -15,8 +15,8 @@ var (
 	subclient = redis.NewClient(&roption)
 )
 
-// NewRedisBroker creates a new instance of RedisBroker
-func NewRedisBroker() *RedisBroker {
+// DefaultRedisBroker creates a new instance of RedisBroker
+func DefaultRedisBroker() *RedisBroker {
 	return &RedisBroker{
 		ExtendBroker(),
 	}
