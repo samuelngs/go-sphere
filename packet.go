@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/gob"
 	"encoding/json"
-	"errors"
 )
 
 // Packet indicates the data of the message
@@ -15,6 +14,7 @@ type Packet struct {
 	Cid       int
 	Error     error
 	Message   *Message
+	Reply     bool
 	Machine   string
 }
 
@@ -22,7 +22,7 @@ type Packet struct {
 func ParsePacket(data []byte) (*Packet, error) {
 	var p *Packet
 	if err := json.Unmarshal(data, &p); err != nil {
-		return nil, errors.New("packet format is invalid")
+		return nil, ErrPacketBadScheme
 	}
 	return p, nil
 }
@@ -64,13 +64,15 @@ func (p *Packet) MarshalJSON() ([]byte, error) {
 		Cid       int        `json:"cid"`
 		Error     string     `json:"error,omitempty"`
 		Message   *Message   `json:"message,omitempty"`
+		Reply     bool       `json:"reply"`
 		Machine   string     `json:"-"`
-	}{p.Type, p.Namespace, p.Room, p.Cid, err, p.Message, p.Machine})
+	}{p.Type, p.Namespace, p.Room, p.Cid, err, p.Message, p.Reply, p.Machine})
 }
 
 // Response return response packet
 func (p *Packet) Response() *Packet {
 	r := *p
+	r.Reply = true
 	switch r.Type {
 	case PacketTypeSubscribe:
 		r.Type = PacketTypeSubscribed
