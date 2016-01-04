@@ -24,22 +24,22 @@ type TestSphereModel struct {
 	*ChannelModel
 }
 
-func (m *TestSphereModel) Subscribe(room string, connection *Connection) bool {
-	return true
+func (m *TestSphereModel) Subscribe(room string, connection *Connection) (bool, IError) {
+	return true, nil
 }
 
-func (m *TestSphereModel) Disconnect(room string, connection *Connection) bool {
-	return true
+func (m *TestSphereModel) Disconnect(room string, connection *Connection) IError {
+	return nil
 }
 
-func (m *TestSphereModel) Receive(event string, message string) (string, error) {
+func (m *TestSphereModel) Receive(event string, message string) (string, IError) {
 	return "you_got_me", nil
 }
 
 func init() {
 	gin.SetMode(gin.ReleaseMode)
 	s, r := Default(), gin.New()
-	s.ChannelModels(&TestSphereModel{ExtendChannelModel("test")})
+	s.Models(&TestSphereModel{ExtendChannelModel("test")})
 	r.GET("/sync", func(c *gin.Context) {
 		s.Handler(c.Writer, c.Request)
 	})
@@ -100,7 +100,7 @@ func TestSphereSendMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if err := c.WriteMessage(TextMessage, res); err != nil {
+	if err := c.WriteMessage(websocket.TextMessage, res); err != nil {
 		t.Fatal(err.Error())
 	}
 }
@@ -128,7 +128,7 @@ func TestSphereMessagePingPong(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if err := c.WriteMessage(TextMessage, res); err != nil {
+	if err := c.WriteMessage(websocket.TextMessage, res); err != nil {
 		t.Fatal(err.Error())
 	}
 	<-done
@@ -157,7 +157,7 @@ func TestSphereSubscribeChannel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if err := c.WriteMessage(TextMessage, res); err != nil {
+	if err := c.WriteMessage(websocket.TextMessage, res); err != nil {
 		t.Fatal(err.Error())
 	}
 	if err := <-done; err != nil {
@@ -187,7 +187,7 @@ func TestSphereChannelMessage(t *testing.T) {
 				case p.Type == PacketTypeSubscribed && p.Error == nil:
 					m := &Packet{Type: PacketTypeChannel, Namespace: "test", Room: "helloworld", Message: &Message{Event: "HelloEvent", Data: "HelloWorld"}}
 					if json, err := m.ToJSON(); err == nil {
-						if err := c.WriteMessage(TextMessage, json); err != nil {
+						if err := c.WriteMessage(websocket.TextMessage, json); err != nil {
 							done <- err
 						}
 					} else {
@@ -204,7 +204,7 @@ func TestSphereChannelMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if err := c.WriteMessage(TextMessage, res); err != nil {
+	if err := c.WriteMessage(websocket.TextMessage, res); err != nil {
 		t.Fatal(err.Error())
 	}
 	if err := <-done; err != nil {
