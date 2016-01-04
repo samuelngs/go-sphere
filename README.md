@@ -33,7 +33,7 @@ func main() {
 
 Scale websocket horizontally via pub/sub (broker) synchronization 
 ```go
-b := sphere.NewRedisBroker()
+b := sphere.DefaultRedisBroker()
 s := sphere.Default(b) // <= pass in redis broker when creates websocket server
 ```
 
