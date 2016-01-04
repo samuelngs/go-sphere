@@ -1,7 +1,5 @@
 package sphere
 
-import "fmt"
-
 // NewChannel creates new Channel instance
 func NewChannel(namespace string, room string) *Channel {
 	return &Channel{namespace: namespace, room: room, state: ChannelStatePending, connections: newConnectionMap()}
@@ -35,19 +33,19 @@ func (channel *Channel) Connections() []*Connection {
 }
 
 // subscribe this channel
-func (channel *Channel) subscribe(c *Connection) error {
+func (channel *Channel) subscribe(c *Connection) IError {
 	state := channel.isSubscribed(c)
 	if !state {
-		c.subscribe(channel)
+		return c.subscribe(channel)
 	}
 	return nil
 }
 
 // unsubscribe this channel
-func (channel *Channel) unsubscribe(c *Connection) error {
+func (channel *Channel) unsubscribe(c *Connection) IError {
 	state := channel.isSubscribed(c)
 	if state {
-		c.unsubscribe(channel)
+		return c.unsubscribe(channel)
 	}
 	return nil
 }
@@ -58,7 +56,7 @@ func (channel *Channel) isSubscribed(c *Connection) bool {
 }
 
 // Emit sends message to current channel
-func (channel *Channel) emit(mt int, payload []byte, c *Connection) error {
+func (channel *Channel) emit(mt int, payload []byte, c *Connection) IError {
 	l := channel.connections.Count()
 	e := make(chan error, l)
 	go func() {
@@ -73,7 +71,7 @@ func (channel *Channel) emit(mt int, payload []byte, c *Connection) error {
 	}()
 	for i := 0; i < l; i++ {
 		if err := <-e; err != nil {
-			fmt.Printf("err: %v\n", err.Error())
+			LogError(err)
 		}
 	}
 	return nil
