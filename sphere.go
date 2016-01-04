@@ -1,7 +1,6 @@
 package sphere
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -52,6 +51,7 @@ func Default(brokers ...IBroker) *Sphere {
 		connections: newConnectionMap(),
 		channels:    newChannelMap(),
 		models:      newChannelModelMap(),
+		events:      newEventModelMap(),
 	}
 	return sphere
 }
@@ -66,6 +66,8 @@ type Sphere struct {
 	channels channelmap
 	// list of models
 	models channelmodelmap
+	// list of events
+	events eventmodelmap
 }
 
 // Handler handles and creates websocket connection
@@ -105,8 +107,10 @@ func (sphere *Sphere) Models(models ...interface{}) {
 		case IChannels:
 			if !sphere.models.Has(model.Namespace()) {
 				sphere.models.Set(model.Namespace(), model)
-			} else {
-				panic(fmt.Sprintf("model \"%s\" is already existed", model.Namespace()))
+			}
+		case IEvents:
+			if !sphere.events.Has(model.Namespace()) {
+				sphere.events.Set(model.Namespace(), model)
 			}
 		}
 	}
@@ -159,13 +163,18 @@ func (sphere *Sphere) process(conn *Connection, msg []byte) {
 			p.Error = ErrBadScheme
 			conn.send <- p
 		}
+	case PacketTypeMessage:
+		if p.Namespace != "" {
+			// receive event message
+			sphere.receive(p, conn)
+		} else {
+			p.Error = ErrBadScheme
+			conn.send <- p
+		}
 	case PacketTypePing:
 		// ping-pong
 		r := p.Response()
 		conn.send <- r
-	case PacketTypeMessage:
-		// receive event message
-		conn.receive <- p
 	}
 }
 
@@ -195,7 +204,7 @@ func (sphere *Sphere) channel(namespace string, room string, autoCreateOpts ...b
 }
 
 // subscribe trigger Broker OnSubscribe action and put connection into channel connections list
-func (sphere *Sphere) subscribe(namespace string, room string, conn *Connection) error {
+func (sphere *Sphere) subscribe(namespace string, room string, conn *Connection) IError {
 	var model IChannels
 	if !sphere.models.Has(namespace) {
 		return ErrNotSupported
@@ -226,7 +235,7 @@ func (sphere *Sphere) subscribe(namespace string, room string, conn *Connection)
 }
 
 // unsubscribe trigger Broker OnUnsubscribe action and remove connection from channel connections list
-func (sphere *Sphere) unsubscribe(namespace string, room string, conn *Connection) error {
+func (sphere *Sphere) unsubscribe(namespace string, room string, conn *Connection) IError {
 	var model IChannels
 	if !sphere.models.Has(namespace) {
 		return ErrNotSupported
@@ -255,7 +264,7 @@ func (sphere *Sphere) unsubscribe(namespace string, room string, conn *Connectio
 }
 
 // publish trigger Broker OnPublish action, send message to user from broker
-func (sphere *Sphere) publish(p *Packet, conn *Connection) error {
+func (sphere *Sphere) publish(p *Packet, conn *Connection) IError {
 	var model IChannels
 	if !sphere.models.Has(p.Namespace) {
 		return ErrNotSupported
@@ -288,4 +297,31 @@ func (sphere *Sphere) publish(p *Packet, conn *Connection) error {
 		return sphere.broker.OnPublish(channel, d)
 	}
 	return ErrServerErrors
+}
+
+// receive message and event handler
+func (sphere *Sphere) receive(p *Packet, conn *Connection) IError {
+	var model IEvents
+	if !sphere.events.Has(p.Namespace) {
+		return ErrNotSupported
+	}
+	if tmp, ok := sphere.events.Get(p.Namespace); ok {
+		model = tmp
+	} else {
+		return ErrNotSupported
+	}
+	msg := p.Message
+	if msg == nil || msg.Event == "" {
+		return ErrBadScheme
+	}
+	res, err := model.Receive(msg.Event, msg.Data)
+	if err != nil {
+		return err
+	}
+	d := p.Response()
+	if res != "" {
+		d.Message.Data = res
+	}
+	conn.send <- d
+	return nil
 }
