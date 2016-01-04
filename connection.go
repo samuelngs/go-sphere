@@ -9,12 +9,10 @@ import (
 )
 
 // NewConnection returns a new ws connection instance
-func NewConnection(w http.ResponseWriter, r *http.Request) (*Connection, error) {
+func NewConnection(w http.ResponseWriter, r *http.Request) (*Connection, IError) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err == nil {
-		conn := &Connection{guid.String(), 0, newChannelMap(), make(chan []byte), make(chan *Packet), r, ws}
-		go conn.queue()
-		return conn, nil
+		return &Connection{guid.String(), 0, newChannelMap(), make(chan *Packet), make(chan *Packet), make(chan struct{}), r, ws}, nil
 	}
 	return nil, err
 }
@@ -28,28 +26,55 @@ type Connection struct {
 	// list of channels that this connection has been subscribed
 	channels channelmap
 	// buffered channel of outbound messages
-	send chan []byte
+	send chan *Packet
 	// buffered channel of inbound messages
 	receive chan *Packet
+	// done channel
+	done chan struct{}
 	// http request
 	request *http.Request
 	// websocket connection
 	*websocket.Conn
 }
 
+// queue is the connection message queue
 func (conn *Connection) queue() {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+	}()
 	for {
 		select {
-		case data := <-conn.send:
-			conn.emit(TextMessage, data)
-		case data := <-conn.receive:
-			fmt.Println(data.String())
+		case packet, ok := <-conn.send:
+			if !ok {
+				conn.emit(websocket.CloseMessage, []byte{})
+				return
+			}
+			if err := conn.emit(websocket.TextMessage, packet); err != nil {
+				LogError(err)
+				return
+			}
+		case packet, ok := <-conn.receive:
+			if ok {
+				fmt.Println(packet.String())
+			}
+		case <-conn.done:
+			close(conn.receive)
+			close(conn.done)
+			return
+		case <-ticker.C:
+			if err := conn.emit(websocket.PingMessage, []byte{}); err != nil {
+				LogError(err)
+				return
+			}
 		}
 	}
 }
 
+// write
+
 // write writes a message with the given message type and payload.
-func (conn *Connection) emit(mt int, payload interface{}, responses ...bool) error {
+func (conn *Connection) emit(mt int, payload interface{}, responses ...bool) IError {
 	conn.SetWriteDeadline(time.Now().Add(writeWait))
 	switch msg := payload.(type) {
 	case []byte:
@@ -70,7 +95,7 @@ func (conn *Connection) emit(mt int, payload interface{}, responses ...bool) err
 		if err != nil {
 			return err
 		}
-		return conn.WriteMessage(TextMessage, json)
+		return conn.WriteMessage(websocket.TextMessage, json)
 	}
 	defer func() {
 		conn.cid++
@@ -79,7 +104,7 @@ func (conn *Connection) emit(mt int, payload interface{}, responses ...bool) err
 }
 
 // subscribe to channel
-func (conn *Connection) subscribe(channel *Channel) error {
+func (conn *Connection) subscribe(channel *Channel) IError {
 	if !conn.isSubscribed(channel) {
 		conn.channels.Set(channel.Name(), channel)
 	}
@@ -90,7 +115,7 @@ func (conn *Connection) subscribe(channel *Channel) error {
 }
 
 // unsubscribe from channel
-func (conn *Connection) unsubscribe(channel *Channel) error {
+func (conn *Connection) unsubscribe(channel *Channel) IError {
 	if conn.isSubscribed(channel) {
 		conn.channels.Remove(channel.Name())
 	}
@@ -103,4 +128,9 @@ func (conn *Connection) unsubscribe(channel *Channel) error {
 // isSubscribed checks if channel is subscribed
 func (conn *Connection) isSubscribed(channel *Channel) bool {
 	return conn.channels.Has(channel.Name())
+}
+
+// close connection
+func (conn *Connection) close() {
+	conn.done <- struct{}{}
 }
