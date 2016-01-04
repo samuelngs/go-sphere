@@ -112,7 +112,7 @@ func (sphere *Sphere) Models(models ...interface{}) {
 	}
 }
 
-// Process parses and processes received message
+// process parses and processes received message
 func (sphere *Sphere) process(conn *Connection, msg []byte) {
 	// convert received bytes to Packet object
 	p, err := ParsePacket(msg)
