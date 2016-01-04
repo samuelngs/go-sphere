@@ -3,9 +3,9 @@ package sphere
 // IChannels is the interface for ChannelModel
 type IChannels interface {
 	Namespace() string
-	Subscribe(string, *Connection) bool
-	Disconnect(string, *Connection) bool
-	Receive(string, string) (string, error)
+	Subscribe(string, *Connection) (bool, IError)
+	Disconnect(string, *Connection) IError
+	Receive(string, string) (string, IError)
 }
 
 // ExtendChannelModel lets developer create a IChannals compatible struct
@@ -24,16 +24,16 @@ func (m *ChannelModel) Namespace() string {
 }
 
 // Subscribe decides whether accept the connection into channel or not, return true => accept, false => reject
-func (m *ChannelModel) Subscribe(room string, connection *Connection) bool {
-	return false
+func (m *ChannelModel) Subscribe(room string, connection *Connection) (bool, IError) {
+	return false, nil
 }
 
 // Disconnect defines the action when user disconnect from channel
-func (m *ChannelModel) Disconnect(room string, connection *Connection) bool {
-	return true
+func (m *ChannelModel) Disconnect(room string, connection *Connection) IError {
+	return nil
 }
 
 // Receive defines the action when websocket server receive message from user in this channel
-func (m *ChannelModel) Receive(event string, message string) (string, error) {
+func (m *ChannelModel) Receive(event string, message string) (string, IError) {
 	return "", nil
 }
