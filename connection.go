@@ -8,7 +8,7 @@ import (
 )
 
 // NewConnection returns a new ws connection instance
-func NewConnection(w http.ResponseWriter, r *http.Request) (*Connection, IError) {
+func NewConnection(upgrader websocket.Upgrader, w http.ResponseWriter, r *http.Request) (*Connection, IError) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err == nil {
 		return &Connection{guid.String(), 0, newChannelMap(), make(chan *Packet), make(chan struct{}), r, ws}, nil
