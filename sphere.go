@@ -24,26 +24,34 @@ const (
 )
 
 var (
-	// Websocket Upgrader
-	upgrader = websocket.Upgrader{
-		ReadBufferSize:  readBufferSize,
-		WriteBufferSize: writeBufferSize,
-	}
 	// Guid to generate globally unique id
 	guid = xid.New()
 )
 
 // Default creates a new instance of Sphere
-func Default(brokers ...IBroker) *Sphere {
+func Default(opts ...interface{}) *Sphere {
 	// declare agent
 	var broker IBroker
+	var option *Option
 	// set declared agent if parameter exists
-	for _, i := range brokers {
-		broker = i
-		break
+	for _, i := range opts {
+		switch obj := i.(type) {
+		case IBroker:
+			broker = obj
+		case *Option:
+			option = obj
+		}
 	}
 	if broker == nil {
 		broker = DefaultSimpleBroker()
+	}
+	// websocket upgrader
+	upgrader := websocket.Upgrader{ReadBufferSize: readBufferSize, WriteBufferSize: writeBufferSize}
+	// update websocket upgrader with option object
+	if option != nil && option.CheckOrigin {
+		upgrader.CheckOrigin = func(r *http.Request) bool {
+			return !option.CheckOrigin
+		}
 	}
 	// creates sphere instance
 	sphere := &Sphere{
@@ -52,6 +60,7 @@ func Default(brokers ...IBroker) *Sphere {
 		channels:    newChannelMap(),
 		models:      newChannelModelMap(),
 		events:      newEventModelMap(),
+		upgrader:    upgrader,
 	}
 	return sphere
 }
@@ -68,11 +77,18 @@ type Sphere struct {
 	models channelmodelmap
 	// list of events
 	events eventmodelmap
+	// websocket upgrader
+	upgrader websocket.Upgrader
+}
+
+// Option for Sphere
+type Option struct {
+	CheckOrigin bool
 }
 
 // Handler handles and creates websocket connection
 func (sphere *Sphere) Handler(w http.ResponseWriter, r *http.Request) IError {
-	if conn, err := NewConnection(w, r); err == nil {
+	if conn, err := NewConnection(sphere.upgrader, w, r); err == nil {
 		sphere.connections.Set(conn.id, conn)
 		// run connection queue
 		go conn.queue()
