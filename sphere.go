@@ -71,7 +71,7 @@ type Sphere struct {
 }
 
 // Handler handles and creates websocket connection
-func (sphere *Sphere) Handler(w http.ResponseWriter, r *http.Request) {
+func (sphere *Sphere) Handler(w http.ResponseWriter, r *http.Request) IError {
 	if conn, err := NewConnection(w, r); err == nil {
 		sphere.connections.Set(conn.id, conn)
 		// run connection queue
@@ -91,13 +91,16 @@ func (sphere *Sphere) Handler(w http.ResponseWriter, r *http.Request) {
 		for {
 			_, msg, err := conn.ReadMessage()
 			if err != nil {
-				return
+				return err
 			}
 			if msg != nil {
 				go sphere.process(conn, msg)
 			}
 		}
+	} else {
+		return err
 	}
+	return nil
 }
 
 // Models load channel or event models
