@@ -167,6 +167,7 @@ func TestSphereSubscribeChannel(t *testing.T) {
 
 func TestSphereChannelMessage(t *testing.T) {
 	done := make(chan error)
+	cid := 0
 	c, _, err := CreateConnection()
 	if err != nil {
 		t.Fatal(err.Error())
@@ -185,7 +186,8 @@ func TestSphereChannelMessage(t *testing.T) {
 			} else {
 				switch {
 				case p.Type == PacketTypeSubscribed && p.Error == nil:
-					m := &Packet{Type: PacketTypeChannel, Namespace: "test", Room: "helloworld", Message: &Message{Event: "HelloEvent", Data: "HelloWorld"}}
+					m := &Packet{Type: PacketTypeChannel, Namespace: "test", Room: "helloworld", Cid: cid, Message: &Message{Event: "HelloEvent", Data: "HelloWorld"}}
+					cid++
 					if json, err := m.ToJSON(); err == nil {
 						if err := c.WriteMessage(websocket.TextMessage, json); err != nil {
 							done <- err
@@ -199,7 +201,8 @@ func TestSphereChannelMessage(t *testing.T) {
 			}
 		}
 	}()
-	p := &Packet{Type: PacketTypeSubscribe, Namespace: "test", Room: "helloworld"}
+	p := &Packet{Type: PacketTypeSubscribe, Namespace: "test", Room: "helloworld", Cid: cid}
+	cid++
 	res, err := p.ToJSON()
 	if err != nil {
 		t.Fatal(err.Error())

@@ -66,32 +66,25 @@ func (conn *Connection) queue() {
 // write
 
 // write writes a message with the given message type and payload.
-func (conn *Connection) emit(mt int, payload interface{}, responses ...bool) IError {
+func (conn *Connection) emit(mt int, payload interface{}) IError {
 	conn.SetWriteDeadline(time.Now().Add(writeWait))
 	switch msg := payload.(type) {
 	case []byte:
 		return conn.WriteMessage(mt, msg)
 	case *Packet:
-		response := false
-		for _, r := range responses {
-			response = r
-			break
-		}
 		if msg == nil {
 			return ErrBadScheme
 		}
-		if !response {
-			msg.Cid = conn.cid
+		if !msg.Reply {
+			conn.cid++
 		}
+		msg.Cid = conn.cid
 		json, err := msg.ToJSON()
 		if err != nil {
 			return err
 		}
 		return conn.WriteMessage(websocket.TextMessage, json)
 	}
-	defer func() {
-		conn.cid++
-	}()
 	return nil
 }
 
