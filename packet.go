@@ -8,14 +8,14 @@ import (
 
 // Packet indicates the data of the message
 type Packet struct {
-	Type      PacketType
-	Namespace string
-	Room      string
-	Cid       int
-	Error     error
-	Message   *Message
-	Reply     bool
-	Machine   string
+	Type      PacketType `json:"type"`
+	Namespace string     `json:"namespace,omitempty"`
+	Room      string     `json:"room,omitempty"`
+	Cid       int        `json:"cid"`
+	Error     error      `json:"error,omitempty"`
+	Message   *Message   `json:"message,omitempty"`
+	Reply     bool       `json:"reply"`
+	Machine   string     `json:"-"`
 }
 
 // ParsePacket returns Packet from bytes
