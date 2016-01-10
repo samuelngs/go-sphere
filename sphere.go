@@ -48,7 +48,7 @@ func Default(opts ...interface{}) *Sphere {
 	// websocket upgrader
 	upgrader := websocket.Upgrader{ReadBufferSize: readBufferSize, WriteBufferSize: writeBufferSize}
 	// update websocket upgrader with option object
-	if option != nil && option.CheckOrigin {
+	if option != nil {
 		upgrader.CheckOrigin = func(r *http.Request) bool {
 			return !option.CheckOrigin
 		}
