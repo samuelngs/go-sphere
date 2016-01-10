@@ -76,15 +76,17 @@ func (conn *Connection) emit(mt int, payload interface{}) IError {
 			return ErrBadScheme
 		}
 		if !msg.Reply {
-			conn.cid++
+			msg.Cid = conn.cid
 		}
-		msg.Cid = conn.cid
 		json, err := msg.ToJSON()
 		if err != nil {
 			return err
 		}
 		return conn.WriteMessage(websocket.TextMessage, json)
 	}
+	defer func() {
+		conn.cid++
+	}()
 	return nil
 }
 
