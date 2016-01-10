@@ -91,6 +91,10 @@ func main() {
 
 ```
 
+## Client-side
+
+The `sphere-client` library can be found at https://github.com/samuelngs/sphere-client
+
 ## Documentation
 
 `go doc` format documentation for this project can be viewed online without installing the package by using the GoDoc page at: https://godoc.org/github.com/samuelngs/go-sphere
