@@ -49,6 +49,11 @@ func (broker *Broker) ID() string {
 	return broker.id
 }
 
+// Store returns the channel store
+func (broker *Broker) Store() cmap.ConcurrentMap {
+	return broker.store
+}
+
 // ChannelName returns channel name with provided namespace and room name
 func (broker *Broker) ChannelName(namespace string, room string) string {
 	return namespace + ":" + room
