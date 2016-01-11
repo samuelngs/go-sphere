@@ -39,28 +39,24 @@ s := sphere.Default(b) // <= pass in redis broker when creates websocket server
 
 Use custom pubsub broker/agent
 ```go
-type CustomBroker struct {
-  *Broker
+type MessageBroker struct {
+	*sphere.Broker
 }
 
-func (broker *CustomBroker) OnSubscribe(channel *Channel) error {
-  return nil
+func (broker *MessageBroker) OnSubscribe(channel *sphere.Channel, done chan<- sphere.IError) { }
+
+func (broker *MessageBroker) OnUnsubscribe(channel *sphere.Channel, done chan<- sphere.IError) { }
+
+func (broker *MessageBroker) OnPublish(channel *sphere.Channel, data *sphere.Packet) error {
+	return nil
 }
 
-func (broker *CustomBroker) OnUnsubscribe(channel *Channel) error {
-  return nil
-}
-
-func (broker *CustomBroker) OnPublish(channel *Channel, data *Packet) error {
-  return nil
-}
-
-func (broker *CustomBroker) OnMessage(channel *Channel, data *Packet) error {
-  return nil
+func (broker *MessageBroker) OnMessage(channel *sphere.Channel, data *sphere.Packet) error {
+	return nil
 }
 
 func main() {
-  customBroker := &CustomBroker{ExtendBroker()}
+  customBroker := &MessageBroker{ExtendBroker()}
   s := sphere.Default(customBroker)
 }
 ```
