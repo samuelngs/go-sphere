@@ -56,7 +56,7 @@ func (channel *Channel) isSubscribed(c *Connection) bool {
 }
 
 // Emit sends message to current channel
-func (channel *Channel) emit(mt int, payload []byte, c *Connection) IError {
+func (channel *Channel) Emit(mt int, payload []byte, c *Connection) IError {
 	l := channel.connections.Count()
 	e := make(chan error, l)
 	go func() {

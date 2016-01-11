@@ -81,7 +81,7 @@ func (broker *SimpleBroker) OnMessage(channel *Channel, data *Packet) error {
 	c := make(chan error)
 	go func() {
 		if json, err := data.ToJSON(); err == nil {
-			channel.emit(websocket.TextMessage, json, nil)
+			channel.Emit(websocket.TextMessage, json, nil)
 		}
 		c <- nil
 	}()
