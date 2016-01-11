@@ -121,3 +121,13 @@ func (conn *Connection) isSubscribed(channel *Channel) bool {
 func (conn *Connection) close() {
 	conn.done <- struct{}{}
 }
+
+// Cookies export connection cookies
+func (conn *Connection) Cookies() []*http.Cookie {
+	return conn.request.Cookies()
+}
+
+// Headers export connection headers
+func (conn *Connection) Headers() http.Header {
+	return conn.request.Header
+}
