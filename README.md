@@ -39,6 +39,10 @@ s := sphere.Default(b) // <= pass in redis broker when creates websocket server
 
 Use custom pubsub broker/agent
 ```go
+package main
+
+import "github.com/samuelngs/go-sphere"
+
 type MessageBroker struct {
 	*sphere.Broker
 }
@@ -63,26 +67,36 @@ func main() {
 
 Custom channel events
 ```go
-type TestSphereModel struct {
-  *ChannelModel
+package main
+
+import "github.com/samuelngs/go-sphere"
+
+// SphereUserAccount Model
+type SphereUserAccount struct{}
+
+// Namespace represents the namespace of the model
+func (m *SphereUserAccount) Namespace() string {
+	return "user-account"
 }
 
-func (m *TestSphereModel) Subscribe(room string, connection *Connection) bool {
-  // return false if you want to reject channel subscribe request
-  return true
+// Subscribe decides whether accept the connection into channel or not, return true => accept, false => reject
+func (m *SphereUserAccount) Subscribe(room string, connection *sphere.Connection) (bool, sphere.IError) {
+	return true, nil
 }
 
-func (m *TestSphereModel) Disconnect(room string, connection *Connection) bool {
-  return true
+// Disconnect defines the action when user disconnect from channel
+func (m *SphereUserAccount) Disconnect(room string, connection *sphere.Connection) sphere.IError {
+	return nil
 }
 
-func (m *TestSphereModel) Receive(event string, message string) (string, error) {
-  return "response_data", nil
+// Receive defines the action when websocket server receive message from user in this channel
+func (m *SphereUserAccount) Receive(event string, message string) (string, sphere.IError) {
+	return "", nil
 }
 
 func main() {
   s := sphere.Default()
-  s.ChannelModels(&TestSphereModel{ExtendChannelModel("test")}) // <= set channel namespace "test"
+  s.Models(&SphereUserAccount{})
 }
 
 ```
