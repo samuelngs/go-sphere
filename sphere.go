@@ -157,7 +157,7 @@ func (sphere *Sphere) process(conn *Connection, msg []byte) {
 	case PacketTypeSubscribe:
 		if p.Namespace != "" && p.Room != "" {
 			// subscribe connection to channel
-			err := sphere.subscribe(p.Namespace, p.Room, conn)
+			err := sphere.subscribe(p.Namespace, p.Room, p.Message, conn)
 			r := p.Response()
 			r.SetError(err)
 			// return success or failure message to user
@@ -223,7 +223,7 @@ func (sphere *Sphere) channel(namespace string, room string, autoCreateOpts ...b
 }
 
 // subscribe trigger Broker OnSubscribe action and put connection into channel connections list
-func (sphere *Sphere) subscribe(namespace string, room string, conn *Connection) IError {
+func (sphere *Sphere) subscribe(namespace string, room string, message *Message, conn *Connection) IError {
 	var model IChannels
 	if !sphere.models.Has(namespace) {
 		return ErrNotSupported
@@ -233,7 +233,7 @@ func (sphere *Sphere) subscribe(namespace string, room string, conn *Connection)
 	} else {
 		return ErrNotSupported
 	}
-	if accept, err := model.Subscribe(room, conn); !accept && err == nil {
+	if accept, err := model.Subscribe(room, message, conn); !accept && err == nil {
 		return ErrUnauthorized
 	} else if !accept && err != nil {
 		return err

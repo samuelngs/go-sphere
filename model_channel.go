@@ -3,7 +3,7 @@ package sphere
 // IChannels is the interface for ChannelModel
 type IChannels interface {
 	Namespace() string
-	Subscribe(string, *Connection) (bool, IError)
+	Subscribe(string, *Message, *Connection) (bool, IError)
 	Disconnect(string, *Connection) IError
 	Receive(string, string) (string, IError)
 }
@@ -24,7 +24,7 @@ func (m *ChannelModel) Namespace() string {
 }
 
 // Subscribe decides whether accept the connection into channel or not, return true => accept, false => reject
-func (m *ChannelModel) Subscribe(room string, connection *Connection) (bool, IError) {
+func (m *ChannelModel) Subscribe(room string, message *Message, connection *Connection) (bool, IError) {
 	return false, nil
 }
 
